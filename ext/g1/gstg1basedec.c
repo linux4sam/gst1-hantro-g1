@@ -585,6 +585,7 @@ gst_g1_base_dec_allocate_output (GstG1BaseDec * dec, GstVideoCodecFrame * frame)
   dec->ppconfig.ppOutImg.pixFormat = gst_g1_format_gst_to_pp (finfo);
   dec->ppconfig.ppOutImg.width = GST_VIDEO_INFO_WIDTH (vinfo);
   dec->ppconfig.ppOutImg.height = GST_VIDEO_INFO_HEIGHT (vinfo);
+  dec->ppconfig.ppOutRgb.ditheringEnable = 1;
 
   dec->ppconfig.ppOutFrmBuffer.enable = 0;
   dec->ppconfig.ppOutFrmBuffer.writeOriginX = 200;
