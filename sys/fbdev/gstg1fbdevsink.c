@@ -45,11 +45,15 @@ enum
 {
   ARG_0,
   ARG_DEVICE,
-  ARG_ZERO_MEMCPY
+  ARG_ZERO_MEMCPY,
+  ARG_CX,
+  ARG_CY
 };
 
 #define DEFAULT_DEVICE NULL
 #define DEFAULT_ZERO_MEMCPY FALSE
+#define DEFAULT_CX (-1)
+#define DEFAULT_CY (-1)
 
 #if 0
 static void gst_g1_fbdevsink_get_times (GstBaseSink * basesink,
@@ -93,6 +97,8 @@ gst_g1_fbdevsink_init (GstG1FBDEVSink * fbdevsink)
 {
   fbdevsink->zero_memcpy = DEFAULT_ZERO_MEMCPY;
   fbdevsink->device = DEFAULT_DEVICE;
+  fbdevsink->cx = DEFAULT_CX;
+  fbdevsink->cy = DEFAULT_CY;
 }
 
 #if 0
@@ -240,13 +246,17 @@ gst_g1_fbdevsink_setcaps (GstBaseSink * bsink, GstCaps * vscapslist)
   /* calculate centering and scanlengths for the video */
   fbdevsink->bytespp = fbdevsink->fixinfo.line_length / fbdevsink->varinfo.xres;
 
+  if (fbdevsink->cx == DEFAULT_CX) {
   fbdevsink->cx = ((int) fbdevsink->varinfo.xres - fbdevsink->width) / 2;
   if (fbdevsink->cx < 0)
     fbdevsink->cx = 0;
+  }
 
+  if (fbdevsink->cy == DEFAULT_CY) {
   fbdevsink->cy = ((int) fbdevsink->varinfo.yres - fbdevsink->height) / 2;
   if (fbdevsink->cy < 0)
     fbdevsink->cy = 0;
+  }
 
   fbdevsink->linelen = fbdevsink->width * fbdevsink->bytespp;
   if (fbdevsink->linelen > fbdevsink->fixinfo.line_length)
@@ -376,6 +386,14 @@ gst_g1_fbdevsink_set_property (GObject * object, guint prop_id,
       fbdevsink->zero_memcpy = g_value_get_boolean (value);
       break;
     }
+    case ARG_CX:{
+      fbdevsink->cx = g_value_get_int (value);
+      break;
+    }
+    case ARG_CY:{
+      fbdevsink->cy = g_value_get_int (value);
+      break;
+    }
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -398,6 +416,14 @@ gst_g1_fbdevsink_get_property (GObject * object, guint prop_id, GValue * value,
     }
     case ARG_ZERO_MEMCPY:{
       g_value_set_boolean (value, fbdevsink->zero_memcpy);
+      break;
+    }
+    case ARG_CX:{
+      g_value_set_int (value, fbdevsink->cx);
+      break;
+    }
+    case ARG_CY:{
+      g_value_set_int (value, fbdevsink->cy);
       break;
     }
     default:
@@ -463,6 +489,16 @@ gst_g1_fbdevsink_class_init (GstG1FBDEVSinkClass * klass)
           "Make g1fbdevsink propose a special allocator to upstream elements where "
           "the memory points to FB directly. If the allocator is decided to be used, "
           "the image width must match the FB width.", DEFAULT_ZERO_MEMCPY,
+          G_PARAM_READWRITE));
+
+  g_object_class_install_property (G_OBJECT_CLASS (klass), ARG_CX,
+      g_param_spec_int ("cx", "cx",
+          "offset of x in screen", -1, 800, DEFAULT_CX,
+          G_PARAM_READWRITE));
+
+  g_object_class_install_property (G_OBJECT_CLASS (klass), ARG_CY,
+      g_param_spec_int ("cy", "cy",
+          "offset of y in screen", -1, 480, DEFAULT_CY,
           G_PARAM_READWRITE));
 
   basesink_class->set_caps = GST_DEBUG_FUNCPTR (gst_g1_fbdevsink_setcaps);
