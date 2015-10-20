@@ -373,7 +373,6 @@ gst_g1_fbdevsink_set_property (GObject * object, guint prop_id,
       break;
     }
     case ARG_ZERO_MEMCPY:{
-      g_free (fbdevsink->device);
       fbdevsink->zero_memcpy = g_value_get_boolean (value);
       break;
     }
