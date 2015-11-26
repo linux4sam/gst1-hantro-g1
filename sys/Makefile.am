@@ -1,1 +1,2 @@
-SUBDIRS = fbdev
+SUBDIRS = fbdev	\
+	  drmsink	

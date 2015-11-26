@@ -64,6 +64,7 @@ struct _GstG1BaseDec {
   guint mask1_width;
   guint mask1_height;
   gchar *mask1_location;
+  gboolean use_drm;
   GstG1Memory *mask1_mem;
   
   /* TODO: move to a private */

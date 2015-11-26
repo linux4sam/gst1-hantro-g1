@@ -15,7 +15,9 @@ libgstg1_la_LIBADD = 	$(G1_LIBS) $(GST_PLUGINS_BASE_LIBS) \
 			-lgstvideo-$(GST_API_VERSION) \
 			$(GST_BASE_LIBS) $(GST_LIBS) \
 			$(top_builddir)/gst-libs/ext/g1/dwl/libgstdwlallocator-@GST_API_VERSION@.la \
-			$(top_builddir)/gst-libs/ext/g1/utils/libgstg1utils-@GST_API_VERSION@.la 
+			$(top_builddir)/gst-libs/ext/g1/utils/libgstg1utils-@GST_API_VERSION@.la \
+			$(top_builddir)/gst-libs/ext/g1/memalloc/libgstg1allocator-@GST_API_VERSION@.la
+		 
 
 libgstg1_la_LDFLAGS = $(GST_PLUGIN_LDFLAGS)
 libgstg1_la_LIBTOOLFLAGS = --tag=disable-static

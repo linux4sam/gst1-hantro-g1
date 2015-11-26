@@ -18,6 +18,7 @@
 #include <string.h>
 
 #include "gstg1allocator.h"
+int g1_gem_physical_addr;
 
 GST_DEBUG_CATEGORY_EXTERN (GST_CAT_MEMORY);
 
@@ -85,4 +86,17 @@ gst_g1_allocator_get_physical (GstMemory * mem)
 
   g1mem = (GstG1Memory *) mem;
   return g1mem->physaddress;
+}
+
+guint32
+gst_g1_gem_set_physical (unsigned int physaddress)
+{
+  g1_gem_physical_addr = physaddress;
+  return 0;
+}
+
+guint32
+gst_g1_gem_get_physical (void)
+{
+  return g1_gem_physical_addr;
 }

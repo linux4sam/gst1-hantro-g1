@@ -1,20 +1,19 @@
-/* GStreamer G1 plugin
- *
- * Copyright (C) 2014-2015  Atmel Corporation.
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this library.  If not, see <http://www.gnu.org/licenses/>.
- */
+ /*
+  * Copyright (C) 2014-2015  Atmel Corporation.
+  *
+  * This library is free software; you can redistribute it and/or
+  * modify it under the terms of the GNU Lesser General Public
+  * License as published by the Free Software Foundation; either
+  * version 2.1 of the License, or (at your option) any later version.
+  *
+  * This library is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  * Lesser General Public License for more details.
+  *
+  * You should have received a copy of the GNU Lesser General Public License
+  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
+  */
 /**
  * SECTION:element-g1basedec
  *
@@ -24,7 +23,7 @@
  */
 
 #ifdef HAVE_CONFIG_H
-#  include "config.h"
+#include "config.h"
 #endif
 #include "gstg1basedec.h"
 #include "gstg1result.h"
@@ -50,6 +49,7 @@ enum
   PROP_MASK1_Y,
   PROP_MASK1_WIDTH,
   PROP_MASK1_HEIGHT,
+  PROP_USE_DRM,
 };
 
 #define PROP_DEFAULT_ROTATION PP_ROTATION_NONE
@@ -61,6 +61,7 @@ enum
 #define PROP_DEFAULT_CROP_WIDTH  0
 #define PROP_DEFAULT_CROP_HEIGHT 0
 #define PROP_DEFAULT_MASK1_LOCATION NULL
+#define PROP_DEFAULT_USE_DRM FALSE
 #define PROP_DEFAULT_MASK1_X 0
 #define PROP_DEFAULT_MASK1_Y 0
 #define PROP_DEFAULT_MASK1_WIDTH 0
@@ -72,8 +73,7 @@ GST_STATIC_PAD_TEMPLATE ("src",
     GST_PAD_SRC,
     GST_PAD_ALWAYS,
     GST_STATIC_CAPS (GST_VIDEO_CAPS_MAKE
-        ("{ GRAY8, YUY2, YVYU, UYVY, NV16, I420, NV12, RGB15, RGB16, BGR15, BGR16, RGBx, BGRx }"))
-    );
+        ("{ GRAY8, YUY2, YVYU, UYVY, NV16, I420, NV12, RGB15, RGB16, BGR15, BGR16, RGBx, BGRx }")));
 
 GST_DEBUG_CATEGORY_STATIC (g1_base_dec_debug);
 #define GST_CAT_DEFAULT g1_base_dec_debug
@@ -83,6 +83,10 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_PERFORMANCE);
 G_DEFINE_TYPE (GstG1BaseDec, gst_g1_base_dec, GST_TYPE_VIDEO_DECODER);
 
 #define GST_G1_PP_FAILED(ret) ((PP_OK != (ret)))
+
+/* Enable to get physical address of gem, 
+   otherwise hardcoded physical address for debugging */
+#define ATMEL_GET_PHYSICAL
 
 static void gst_g1_base_dec_get_property (GObject * object, guint prop_id,
     GValue * value, GParamSpec * pspec);
@@ -115,8 +119,7 @@ static void gst_g1_base_dec_config_saturation (GstG1BaseDec * g1dec,
     gint saturation);
 static void gst_g1_base_dec_config_crop (GstG1BaseDec * g1dec,
     gint x, gint y, gint width, gint height);
-static void
-gst_g1_base_dec_config_mask1 (GstG1BaseDec * g1dec,
+static void gst_g1_base_dec_config_mask1 (GstG1BaseDec * g1dec,
     gchar * location, gint x, gint y, gint width, gint height);
 
 static void
@@ -134,76 +137,102 @@ gst_g1_base_dec_class_init (GstG1BaseDecClass * klass)
   gobject_class->get_property = gst_g1_base_dec_get_property;
 
   g_object_class_install_property (gobject_class, PROP_ROTATION,
-      g_param_spec_enum ("rotation", "Rotation", "Picture rotation",
-          GST_G1_ENUM_ROTATION_TYPE, PROP_DEFAULT_ROTATION,
-          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+      g_param_spec_enum ("rotation", "Rotation",
+          "Picture rotation",
+          GST_G1_ENUM_ROTATION_TYPE,
+          PROP_DEFAULT_ROTATION, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_BRIGHTNESS,
-      g_param_spec_int ("brightness", "Brightness",
-          "Output picture's brightness", -128, 127, PROP_DEFAULT_BRIGHTNESS,
-          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+      g_param_spec_int ("brightness",
+          "Brightness",
+          "Output picture's brightness",
+          -128, 127,
+          PROP_DEFAULT_BRIGHTNESS, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_CONTRAST,
-      g_param_spec_int ("contrast", "Contrast", "Output picture's contrast",
-          -64, 64, PROP_DEFAULT_CONTRAST,
-          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+      g_param_spec_int ("contrast", "Contrast",
+          "Output picture's contrast",
+          -64, 64,
+          PROP_DEFAULT_CONTRAST, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_SATURATION,
-      g_param_spec_int ("saturation", "Saturation",
-          "Output picture's saturation", -64, 128, PROP_DEFAULT_SATURATION,
-          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+      g_param_spec_int ("saturation",
+          "Saturation",
+          "Output picture's saturation",
+          -64, 128,
+          PROP_DEFAULT_SATURATION, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_CROP_X,
       g_param_spec_uint ("crop-x", "Crop X",
           "X coordinate of the cropping area. Must be less than the input image's "
-          "width and multiple of 16.", 0, 4096, PROP_DEFAULT_CROP_X,
-          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+          "width and multiple of 16.",
+          0, 4096,
+          PROP_DEFAULT_CROP_X, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_CROP_Y,
       g_param_spec_uint ("crop-y", "Crop Y",
           "Y coordinate of the cropping area. Must be less than the input image's "
-          "height and multiple of 16.", 0, 4096, PROP_DEFAULT_CROP_Y,
-          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+          "height and multiple of 16.",
+          0, 4096,
+          PROP_DEFAULT_CROP_Y, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_CROP_WIDTH,
-      g_param_spec_uint ("crop-width", "Crop Width",
+      g_param_spec_uint ("crop-width",
+          "Crop Width",
           "Width of the cropping area. Must be at least 1/3 the output image's "
           "width and multiple of 8. Setting crop width or height to 0 disables cropping.",
-          0, 4672, PROP_DEFAULT_CROP_WIDTH,
-          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+          0, 4672,
+          PROP_DEFAULT_CROP_WIDTH, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_CROP_HEIGHT,
-      g_param_spec_uint ("crop-height", "Crop Height",
+      g_param_spec_uint ("crop-height",
+          "Crop Height",
           "Height of the cropping area. Must be at least 1/3 the output image's "
           "height-2 and multiple of 8. Setting crop width or height to 0 disables "
-          "cropping.", 0, 4672, PROP_DEFAULT_CROP_HEIGHT,
+          "cropping.", 0, 4672,
+          PROP_DEFAULT_CROP_HEIGHT,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_MASK1_LOCATION,
-      g_param_spec_string ("mask1-location", "Mask 1 Location",
+      g_param_spec_string ("mask1-location",
+          "Mask 1 Location",
           "Path to the file containing the first mask. This file must be in a raw "
-          "ARGB format", PROP_DEFAULT_MASK1_LOCATION,
+          "ARGB format",
+          PROP_DEFAULT_MASK1_LOCATION,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_MASK1_X,
       g_param_spec_uint ("mask1-x", "Mask 1 X",
-          "X coordinate of the first mask", 0, 4096, PROP_DEFAULT_MASK1_X,
-          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+          "X coordinate of the first mask",
+          0, 4096,
+          PROP_DEFAULT_MASK1_X, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_MASK1_Y,
       g_param_spec_uint ("mask1-y", "Mask 1 Y",
-          "Y coordinate of the first mask", 0, 4096, PROP_DEFAULT_MASK1_Y,
-          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+          "Y coordinate of the first mask",
+          0, 4096,
+          PROP_DEFAULT_MASK1_Y, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_MASK1_WIDTH,
-      g_param_spec_uint ("mask1-width", "Mask 1 Width",
-          "Width of the first mask", 0, 4096, PROP_DEFAULT_MASK1_WIDTH,
+      g_param_spec_uint ("mask1-width",
+          "Mask 1 Width",
+          "Width of the first mask",
+          0, 4096,
+          PROP_DEFAULT_MASK1_WIDTH,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_MASK1_HEIGHT,
-      g_param_spec_uint ("mask1-height", "Mask 1 Height",
-          "Height of the first mask", 0, 4096, PROP_DEFAULT_MASK1_HEIGHT,
+      g_param_spec_uint ("mask1-height",
+          "Mask 1 Height",
+          "Height of the first mask",
+          0, 4096,
+          PROP_DEFAULT_MASK1_HEIGHT,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_USE_DRM,
+      g_param_spec_boolean ("use-drm", "Use DRM",
+          "Identify fbdev or drm"
+          "true/false", PROP_DEFAULT_USE_DRM, G_PARAM_READWRITE));
 
   parent_class = g_type_class_peek_parent (klass);
 
@@ -236,7 +265,8 @@ gst_g1_base_dec_init (GstG1BaseDec * dec)
   dec->codec = NULL;
   dec->pp = NULL;
   dec->dectype = PP_PIPELINE_DISABLED;
-  dec->ppconfig = (const PPConfig) { {
+  dec->ppconfig = (const PPConfig) {
+    {
   0}};
   dec->allocator = NULL;
 
@@ -497,8 +527,8 @@ gst_g1_base_dec_set_format (GstVideoDecoder * decoder,
       GST_VIDEO_INFO_WIDTH (&vinfo) * GST_VIDEO_INFO_HEIGHT (&vinfo);
 
   gst_video_decoder_set_output_state (decoder,
-      GST_VIDEO_FORMAT_INFO_FORMAT (vinfo.finfo), GST_VIDEO_INFO_WIDTH (&vinfo),
-      GST_VIDEO_INFO_HEIGHT (&vinfo), state);
+      GST_VIDEO_FORMAT_INFO_FORMAT (vinfo.finfo),
+      GST_VIDEO_INFO_WIDTH (&vinfo), GST_VIDEO_INFO_HEIGHT (&vinfo), state);
   gst_video_decoder_negotiate (decoder);
 
   /* Cropping depends on output format */
@@ -569,14 +599,19 @@ gst_g1_base_dec_allocate_output (GstG1BaseDec * dec, GstVideoCodecFrame * frame)
         ("unable to allocate memory for post processor"), (NULL));
     goto stateunref;
   }
-
-  /* It is mandatory for this buffer to be G1 */
-  mem = gst_buffer_get_all_memory (frame->output_buffer);
-  g_return_val_if_fail (GST_IS_G1_ALLOCATOR (mem->allocator), GST_FLOW_ERROR);
-
+  /* Atmel to identify fbdevsink or drmsink */
+  if (dec->use_drm) {
+    /* Atmel: Get physical address of gem object to pass to PP API */
+    physaddress = gst_g1_gem_get_physical ();
+  } else {
+    /* It is mandatory for this buffer to be G1 */
+    mem = gst_buffer_get_all_memory (frame->output_buffer);
+    g_return_val_if_fail (GST_IS_G1_ALLOCATOR (mem->allocator), GST_FLOW_ERROR);
+    physaddress = gst_g1_allocator_get_physical (mem);
+  }
 #define Y 0
 #define CbCr 1
-  physaddress = gst_g1_allocator_get_physical (mem);
+
   dec->ppconfig.ppOutImg.bufferBusAddr = physaddress +
       GST_VIDEO_INFO_PLANE_OFFSET (vinfo, Y);
   dec->ppconfig.ppOutImg.bufferChromaBusAddr =
@@ -605,7 +640,8 @@ gst_g1_base_dec_allocate_output (GstG1BaseDec * dec, GstVideoCodecFrame * frame)
 
 memunref:
   {
-    gst_memory_unref (mem);
+    if (!dec->use_drm)
+      gst_memory_unref (mem);
   }
 stateunref:
   {
@@ -652,7 +688,7 @@ gst_g1_base_dec_set_property (GObject * object, guint prop_id,
   GstG1BaseDec *g1dec = GST_G1_BASE_DEC (object);
 
   switch (prop_id) {
-    case PROP_ROTATION:
+    PROP_ROTATION:
       gst_g1_base_dec_config_rotation (g1dec, g_value_get_enum (value));
       break;
     case PROP_BRIGHTNESS:
@@ -701,6 +737,10 @@ gst_g1_base_dec_set_property (GObject * object, guint prop_id,
       gst_g1_base_dec_config_mask1 (g1dec, (gpointer) - 1,
           -1, -1, -1, (gint) g_value_get_uint (value));
       break;
+    case PROP_USE_DRM:
+      g1dec->use_drm = g_value_get_boolean (value);
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -753,6 +793,10 @@ gst_g1_base_dec_get_property (GObject * object, guint prop_id,
     case PROP_MASK1_HEIGHT:
       g_value_set_uint (value, g1dec->mask1_height);
       break;
+    case PROP_USE_DRM:
+      g_value_set_boolean (value, g1dec->use_drm);
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -896,8 +940,8 @@ gst_g1_base_dec_config_mask1 (GstG1BaseDec * g1dec,
     }
     printf ("DEBUG: %s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__);
     rgbsize = g1dec->mask1_width * g1dec->mask1_height * 4;
-    g1dec->mask1_mem = (GstG1Memory *) gst_allocator_alloc (g1dec->allocator,
-        rgbsize, NULL);
+    g1dec->mask1_mem =
+        (GstG1Memory *) gst_allocator_alloc (g1dec->allocator, rgbsize, NULL);
     printf ("DEBUG: %s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__);
     if (rgbsize != fread (g1dec->mask1_mem->virtaddress, 1, rgbsize, rgbfile)) {
       GST_ERROR_OBJECT (g1dec, "error reading mask1 %s", g1dec->mask1_location);

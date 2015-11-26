@@ -1,14 +1,11 @@
-AC_PREREQ(2.62)
+AC_PREREQ([2.69])
 
 dnl please read gstreamer/docs/random/autotools before changing this file
 
 dnl initialize autoconf
 dnl releases only do -Wall, git and prerelease does -Werror too
 dnl use a three digit version number for releases, and four for git/pre
-AC_INIT(GStreamer Hantro G1 Decoder Plug-in, 0.0.0.1,
-    support@ridgerun.com,
-    gst-hantro-g1,
-    www.ridgerun.com)
+AC_INIT([GStreamer Hantro G1 Decoder Plug-in],[0.0.0.1],[support@ridgerun.com],[gst-hantro-g1],[www.ridgerun.com])
 
 AG_GST_INIT
 
@@ -335,6 +332,7 @@ ext/Makefile
 ext/g1/Makefile
 sys/Makefile
 sys/fbdev/Makefile
+sys/drmsink/Makefile
 gst-libs/Makefile
 gst-libs/ext/Makefile
 gst-libs/ext/g1/Makefile
