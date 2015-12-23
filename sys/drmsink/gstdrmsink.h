@@ -62,6 +62,8 @@ struct _GstDrmsink
   gboolean page_flip_occurred;
   int cx;
   int cy;
+  int cw;
+  int ch;
   gboolean zero_memcpy;
   gboolean lcd;
 

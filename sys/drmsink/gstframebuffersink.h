@@ -81,7 +81,7 @@ struct _GstFramebufferSink
   gint max_video_memory_property;
   gchar *preferred_overlay_format_str;
   gboolean benchmark;
-  gboolean zeromemcpy; //venki
+  gboolean zeromemcpy;
 
   /* Variables (derived from properties) that may be altered when
      the element starts processing a stream. */

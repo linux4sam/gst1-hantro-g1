@@ -137,6 +137,8 @@
 #define DEFAULT_LCD FALSE
 #define DEFAULT_CX (0)
 #define DEFAULT_CY (0)
+#define DEFAULT_CW (0)
+#define DEFAULT_CH (0)
 
 GST_DEBUG_CATEGORY_STATIC (gst_drmsink_debug_category);
 #define GST_CAT_DEFAULT gst_drmsink_debug_category
@@ -178,6 +180,7 @@ static void gst_drmsink_page_flip_handler (int fd, unsigned int sequence,
     unsigned int tv_sec, unsigned int tv_usec, void *user_data);
 static void gst_drmsink_flush_drm_events (GstDrmsink * drmsink);
 static void gst_drmsink_wait_pending_drm_events (GstDrmsink * drmsink);
+int divRoundClosest(const int , const int );
 
 enum
 {
@@ -186,6 +189,8 @@ enum
   PROP_ZERO_MEMCPY,
   PROP_CX,
   PROP_CY,
+  PROP_CW,
+  PROP_CH,
   PROP_LCD
 };
 
@@ -213,6 +218,7 @@ GST_STATIC_PAD_TEMPLATE ("sink",
 G_DEFINE_TYPE_WITH_CODE (GstDrmsink, gst_drmsink, GST_TYPE_FRAMEBUFFERSINK,
     GST_DEBUG_CATEGORY_INIT (gst_drmsink_debug_category, "drmsink", 0,
         "debug category for drmsink element"));
+
 
 static void
 gst_drmsink_class_init (GstDrmsinkClass * klass)
@@ -252,11 +258,20 @@ gst_drmsink_class_init (GstDrmsinkClass * klass)
 
   g_object_class_install_property (gobject_class, PROP_CX,
       g_param_spec_int ("cx", "cx", "offset of x in screen",
-          -1, 1280, 0, G_PARAM_READWRITE));
+          -1, 1280, DEFAULT_CX, G_PARAM_READWRITE));
 
   g_object_class_install_property (gobject_class, PROP_CY,
       g_param_spec_int ("cy", "cy", "offset of y in screen",
-          -1, 720, 0, G_PARAM_READWRITE));
+          -1, 720, DEFAULT_CY, G_PARAM_READWRITE));
+
+  g_object_class_install_property (gobject_class, PROP_CW,
+      g_param_spec_int ("cw", "cw", "width of the plane in screen",
+          -1, 1280, DEFAULT_CW, G_PARAM_READWRITE));
+
+  g_object_class_install_property (gobject_class, PROP_CH,
+      g_param_spec_int ("ch", "ch", "height of the plane in screen",
+          -1, 720, DEFAULT_CH, G_PARAM_READWRITE));
+
 
   framebuffer_sink_class->open_hardware =
       GST_DEBUG_FUNCPTR (gst_drmsink_open_hardware);
@@ -309,7 +324,8 @@ gst_drmsink_set_property (GObject * object, guint prop_id,
 
   g_return_if_fail (GST_IS_DRMSINK (object));
 
-  switch (prop_id) {
+   switch (prop_id)
+   {
     case PROP_CONNECTOR:
       drmsink->preferred_connector_id = g_value_get_int (value);
       break;
@@ -320,21 +336,21 @@ gst_drmsink_set_property (GObject * object, guint prop_id,
       break;
     }
     case PROP_LCD:
-    {
       drmsink->lcd = g_value_get_boolean (value);
       break;
-    }
     case PROP_CX:
-    {
       drmsink->cx = g_value_get_int (value);
       break;
-    }
     case PROP_CY:
-    {
       drmsink->cy = g_value_get_int (value);
-
       break;
-    }
+    case PROP_CW:
+      drmsink->cw = g_value_get_int (value);
+      break;
+    case PROP_CH:
+      drmsink->ch = g_value_get_int (value);
+      break;
+
     default:
       break;
   }
@@ -371,6 +387,14 @@ gst_drmsink_get_property (GObject * object, guint prop_id,
     case PROP_CY:
       g_value_set_int (value, drmsink->cy);
       break;
+
+    case PROP_CW:
+	  g_value_set_int (value, drmsink->cw);
+	  break;
+
+    case PROP_CH:
+	  g_value_set_int (value, drmsink->ch);
+	  break;
 
     default:
       break;
@@ -513,10 +537,8 @@ gst_drmsink_reset (GstDrmsink * drmsink)
     close (drmsink->fd);
     drmsink->fd = -1;
   }
-//  drmsink->par_n = drmsink->par_d = 1;
 
   memset (&drmsink->screen_rect, 0, sizeof (GstVideoRectangle));
-//  memset (&drmsink->info, 0, sizeof (GstVideoInfo));
 
   drmsink->connector_id = -1;
 }
@@ -831,9 +853,8 @@ gst_drmsink_video_memory_allocator_alloc (GstAllocator * allocator, gsize size,
 
   mem->creq.height = drmsink_video_memory_allocator->h;
   mem->creq.width = drmsink_video_memory_allocator->w;
-  mem->creq.bpp =
-      GST_VIDEO_FORMAT_INFO_PSTRIDE
-      (&drmsink_video_memory_allocator->format_info, 0) * 8;
+  mem->creq.bpp = GST_VIDEO_FORMAT_INFO_PSTRIDE
+		  (&drmsink_video_memory_allocator->format_info, 0) * 8;
   mem->creq.flags = 0;
 
   /* handle, pitch and size will be returned in the creq struct. */
@@ -873,24 +894,24 @@ gst_drmsink_video_memory_allocator_alloc (GstAllocator * allocator, gsize size,
     goto fail_destroy;
   }
 
-  /* Atmel specific IOCTL to get the physical address of gem object 
-     This is very much required as the decoder API is expecting 
-     physical address of buffer, Otherwise an unneccessary memcpy 
+  /* Atmel specific IOCTL to get the physical address of gem object
+     This is very much required as the decoder API is expecting
+     physical address of buffer, Otherwise memcpy operation
      is performed which affects the overall system performance */
+    memset (&mem->mreq, 0, sizeof (mem->mreq));
+    mem->mreq.handle = mem->creq.handle;
+    ret = drmIoctl(drmsink_video_memory_allocator->drmsink->fd,
+    	DRM_IOCTL_ATMEL_GEM_GET,&mem->mreq);
+    if (ret) {
+      GST_DRMSINK_MESSAGE_OBJECT (drmsink_video_memory_allocator->drmsink,
+          "DRM buffer get physical address failed.\n");
+      drmModeRmFB (drmsink_video_memory_allocator->drmsink->fd, mem->creq.handle);
+      goto fail_destroy;
+    }
 
-  memset (&mem->mreq, 0, sizeof (mem->mreq));
-  mem->mreq.handle = mem->creq.handle;
-  ret = drmIoctl (drmsink_video_memory_allocator->drmsink->fd,
-      DRM_IOCTL_ATMEL_GEM_GET, &mem->mreq);
-  if (ret) {
-    GST_DRMSINK_MESSAGE_OBJECT (drmsink_video_memory_allocator->drmsink,
-        "DRM buffer get physical address failed.\n");
-    drmModeRmFB (drmsink_video_memory_allocator->drmsink->fd, mem->creq.handle);
-    goto fail_destroy;
-  }
+    physaddress = (unsigned int) mem->mreq.offset;
+    gst_g1_gem_set_physical ((unsigned int) physaddress);
 
-  physaddress = (unsigned int) mem->mreq.offset;
-  gst_g1_gem_set_physical ((unsigned int) physaddress);
 
   /* the framebuffer "fb" can now used for scanout with KMS */
 
@@ -921,6 +942,8 @@ gst_drmsink_video_memory_allocator_alloc (GstAllocator * allocator, gsize size,
     drmModeRmFB (drmsink_video_memory_allocator->drmsink->fd, mem->creq.handle);
     goto fail_destroy;
   }
+
+
 #ifndef LAZY_ALLOCATION
   gst_memory_init (GST_MEMORY_CAST (mem), GST_MEMORY_FLAG_NO_SHARE |
       GST_MEMORY_FLAG_VIDEO_MEMORY,
@@ -1116,6 +1139,11 @@ gst_drmsink_wait_pending_drm_events (GstDrmsink * drmsink)
   }
 }
 
+int divRoundClosest(const int n, const int d)
+{
+  return ((n < 0) ^ (d < 0)) ? ((n - d/2)/d) : ((n + d/2)/d);
+}
+
 static void
 gst_drmsink_pan_display (GstFramebufferSink * framebuffersink,
     GstMemory * memory)
@@ -1128,22 +1156,33 @@ gst_drmsink_pan_display (GstFramebufferSink * framebuffersink,
   GST_LOG_OBJECT (framebuffersink,
       "pan_display called, mem = %p, map_address = %p",
       vmem, vmem->map_address);
+
   if (drmsink->lcd) {
-    cx = drmsink->plane->crtc_x;
-    cy = drmsink->plane->crtc_y;
-    cw = drmsink->mode.hdisplay / 2;
-    ch = drmsink->mode.vdisplay / 2;
 
-    sx = 0;
-    sy = 0;
-    sw = (drmsink->mode.hdisplay << 16);
-    sh = (drmsink->mode.vdisplay << 16);
+   cx = drmsink->plane->crtc_x;
+   cy = drmsink->plane->crtc_y;
+   cw=(divRoundClosest(drmsink->cw, 16)*16);
+   ch=(divRoundClosest(drmsink->ch, 16)*16);
 
+   if(cw == DEFAULT_CW || ch == DEFAULT_CH)
+   {
+	  /*width or height is zero, make it full screen*/
+	   cx = 0;
+	   cy = 0;
+	   cw = drmsink->mode.hdisplay;
+	   ch = drmsink->mode.vdisplay;
+
+   }
+
+   sx = 0;
+   sy = 0;
+   sw = (drmsink->mode.hdisplay << 16);
+   sh = (drmsink->mode.vdisplay << 16);
 
     if (!drmsink->set_plane_initialized) {
       if (drmModeSetPlane (drmsink->fd, drmsink->plane->plane_id,
-              drmsink->crtc_id, vmem->fb, 0, cx, cy, cw, ch, sx, sy, sw, sh)) {
-        GST_ERROR_OBJECT (drmsink, "drmModeSetCrtc failed");
+              drmsink->crtc_id, vmem->fb, 0, cx, cy, cw, ch,sx, sy, sw, sh)) {
+        GST_ERROR_OBJECT (drmsink, "drmModeSetPlane failed");
         return;
       }
       drmsink->set_plane_initialized = TRUE;
@@ -1151,15 +1190,16 @@ gst_drmsink_pan_display (GstFramebufferSink * framebuffersink,
 
   } else {
 
-    if (!drmsink->crtc_mode_initialized) {
-      connectors[0] = drmsink->connector_id;
-      if (drmModeSetCrtc (drmsink->fd, drmsink->crtc_id, vmem->fb, 0, 0,
-              connectors, 1, &drmsink->mode)) {
-        GST_ERROR_OBJECT (drmsink, "drmModeSetCrtc failed");
-        return;
-      }
-      drmsink->crtc_mode_initialized = TRUE;
-    }
+	  if (!drmsink->crtc_mode_initialized) {
+		connectors[0] = drmsink->connector_id;
+		if (drmModeSetCrtc (drmsink->fd, drmsink->crtc_id,vmem->fb, 0, 0,
+				connectors, 1, &drmsink->mode)) {
+		  GST_ERROR_OBJECT (drmsink, "drmModeSetCrtc failed");
+		  return;
+		}
+		drmsink->crtc_mode_initialized = TRUE;
+	  }
+
   }
 
   gst_drmsink_flush_drm_events (drmsink);
@@ -1172,7 +1212,7 @@ gst_drmsink_pan_display (GstFramebufferSink * framebuffersink,
 
   drmsink->page_flip_occurred = FALSE;
   drmsink->page_flip_pending = TRUE;
-  if (drmModePageFlip (drmsink->fd, drmsink->crtc_id, vmem->fb,
+  if (drmModePageFlip (drmsink->fd, drmsink->crtc_id,vmem->fb,
           DRM_MODE_PAGE_FLIP_EVENT, drmsink)) {
     GST_ERROR_OBJECT (drmsink, "drmModePageFlip failed");
     return;

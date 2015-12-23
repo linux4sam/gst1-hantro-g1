@@ -1973,13 +1973,7 @@ reconfigure:
     if (framebuffersink->flip_buffers == 0
         && framebuffersink->nu_screens_used > 3)
       framebuffersink->nu_screens_used = 2;
-    if (!framebuffersink->silent) {
-      char s[80];
-      g_sprintf (s, "Using %d framebuffers for page flipping",
-          framebuffersink->nu_screens_used);
-      GST_FRAMEBUFFERSINK_MESSAGE_OBJECT (framebuffersink, s);
     }
-  }
   if (framebuffersink->use_buffer_pool) {
     GstBufferPool *pool;
     pool = gst_framebuffersink_allocate_buffer_pool (framebuffersink, caps,
@@ -2446,7 +2440,7 @@ gst_framebuffersink_show_frame (GstVideoSink * vsink, GstBuffer * buf)
 
   if (framebuffersink->zeromemcpy) {
     res = gst_framebuffersink_show_plane_overlay (framebuffersink, buf);
-    return res;
+    	return res;
   } else {
     if (framebuffersink->use_hardware_overlay)
       res = gst_framebuffersink_show_frame_overlay (framebuffersink, buf);
