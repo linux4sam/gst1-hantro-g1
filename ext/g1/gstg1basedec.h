@@ -59,6 +59,11 @@ struct _GstG1BaseDec {
   guint crop_width;
   guint crop_height;
 
+  guint x;
+  guint y;
+  guint w;
+  guint h;
+
   guint mask1_x;
   guint mask1_y;
   guint mask1_width;

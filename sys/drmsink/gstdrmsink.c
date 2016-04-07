@@ -18,15 +18,17 @@
  */
 /*
  * Based partly on gstkmssink.c found at
- * https://gitorious.org/vjaquez-gstreamer/ which has the following
- * copyright message.
+ * https://gitorious.org/vjaquez-gstreamer
+ * https://git.ti.com/glsdk/gstreamer1-0-plugins-bad/
  *
  * Copyright (C) 2012 Texas Instruments
  * Copyright (C) 2012 Collabora Ltd
+ * Copyright (C) Atmel Corporation
  *
  * Authors:
  *  Alessandro Decina <alessandro.decina@collabora.co.uk>
  *  Víctor Manuel Jáquez Leal <vjaquez@igalia.com>
+ *  Venkatesh Prabhu Seluka  <venkateshprabhu.subramanian@atmel.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -44,57 +46,6 @@
  * Boston, MA 02111-1307, USA.
  */
 
-/**
- * SECTION:element-drmsink
- *
- * The drmsink element implements an accelerated and optimized
- * video sink for the Linux console framebuffer using the libdrm library.
- * The basis of the implementation is the optimized framebuffer sink as
- * implemented in the GstFramebufferSink class.
- *
- * <refsect2>
- * <title>Property settings,<title>
- * <para>
- * The plugin comes with variety of configurable properties regulating
- * the size and frames per second of the video output, and various 
- * options regulating the rendering method (including rendering directly
- * to video memory and page flipping).
- * </para>
- * </refsect2>
- * <refsect2>
- * <title>Example launch line</title>
- * |[
- * gst-launch -v videotestsrc ! drmsink >/dev/null
- * ]|
- * Output the video test signal to the framebuffer. The redirect to
- * null surpressed interference from console text mode.
- * |[
- * gst-launch -v videotestsrc ! drmsink native-resolution=true
- * ]|
- * Run videotstsrc at native screen resolution
- * |[
- * gst-launch -v videotestsrc horizontal_speed=10 ! drmsink \
- * native-resolution=true buffer-pool=true
- * ]|
- * This command illustrates some of the plugin's optimization features
- * by rendering to video memory with vsync and page flipping. There should
- * be no tearing with page flipping/vsync enabled. You might have to use
- * the fps property to reduce the frame rate on slower systems.
- * |[
- * gst-launch playbin uri=[uri] video-sink="drmsink native-resolution=true"
- * ]|
- * Use playbin while passing options to drmsink.
- * </refsect2>
- * <refsect2>
- * <title>Caveats</title>
- * <para>
- * The actual implementation of the Linux DRM API varies between
- * systems. Some implementations fail to implement a real vsync but instead
- * seem to be use some kind of fake timer close to the refresh frequency,
- * which will produce tearing.
- * </para>
- * </refsect2>
- */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -134,7 +85,6 @@
 #define USE_DRM_PLANES
 
 #define DEFAULT_ZERO_MEMCPY FALSE
-#define DEFAULT_LCD FALSE
 #define DEFAULT_CX (0)
 #define DEFAULT_CY (0)
 #define DEFAULT_CW (0)
@@ -190,8 +140,7 @@ enum
   PROP_CX,
   PROP_CY,
   PROP_CW,
-  PROP_CH,
-  PROP_LCD
+  PROP_CH
 };
 
 #define GST_DRMSINK_TEMPLATE_CAPS \
@@ -236,7 +185,7 @@ gst_drmsink_class_init (GstDrmsinkClass * klass)
       gst_static_pad_template_get (&gst_drmsink_sink_template));
 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
-      "Optimized Linux console libdrm/KMS sink",
+      "Optimized Linux console libdrm/KMS sink: Atmel",
       "Sink/Video",
       "drm framebuffer sink", "Harm Hanemaaijer <fgenfb@yahoo.com>");
 
@@ -251,26 +200,21 @@ gst_drmsink_class_init (GstDrmsinkClass * klass)
           "the image width must match the FB width.", DEFAULT_ZERO_MEMCPY,
           G_PARAM_READWRITE));
 
-  g_object_class_install_property (gobject_class, PROP_LCD,
-      g_param_spec_boolean ("lcd", "lcd",
-          "If lcd=true, plane creation and other lcd related configs are set.",
-          DEFAULT_LCD, G_PARAM_READWRITE));
-
   g_object_class_install_property (gobject_class, PROP_CX,
       g_param_spec_int ("cx", "cx", "offset of x in screen",
-          -1, 1280, DEFAULT_CX, G_PARAM_READWRITE));
+          0, 4096, DEFAULT_CX, G_PARAM_READWRITE));
 
   g_object_class_install_property (gobject_class, PROP_CY,
       g_param_spec_int ("cy", "cy", "offset of y in screen",
-          -1, 720, DEFAULT_CY, G_PARAM_READWRITE));
+          0, 4096, DEFAULT_CY, G_PARAM_READWRITE));
 
   g_object_class_install_property (gobject_class, PROP_CW,
       g_param_spec_int ("cw", "cw", "width of the plane in screen",
-          -1, 1280, DEFAULT_CW, G_PARAM_READWRITE));
+          0, 4096, DEFAULT_CW, G_PARAM_READWRITE));
 
   g_object_class_install_property (gobject_class, PROP_CH,
       g_param_spec_int ("ch", "ch", "height of the plane in screen",
-          -1, 720, DEFAULT_CH, G_PARAM_READWRITE));
+          0, 4096, DEFAULT_CH, G_PARAM_READWRITE));
 
 
   framebuffer_sink_class->open_hardware =
@@ -329,24 +273,25 @@ gst_drmsink_set_property (GObject * object, guint prop_id,
     case PROP_CONNECTOR:
       drmsink->preferred_connector_id = g_value_get_int (value);
       break;
+
     case PROP_ZERO_MEMCPY:
     {
       drmsink->zero_memcpy = g_value_get_boolean (value);
       drmsink->framebuffersink.zeromemcpy = drmsink->zero_memcpy;
       break;
     }
-    case PROP_LCD:
-      drmsink->lcd = g_value_get_boolean (value);
-      break;
     case PROP_CX:
       drmsink->cx = g_value_get_int (value);
       break;
+
     case PROP_CY:
       drmsink->cy = g_value_get_int (value);
       break;
+
     case PROP_CW:
       drmsink->cw = g_value_get_int (value);
       break;
+
     case PROP_CH:
       drmsink->ch = g_value_get_int (value);
       break;
@@ -374,10 +319,6 @@ gst_drmsink_get_property (GObject * object, guint prop_id,
 
     case PROP_ZERO_MEMCPY:
       g_value_set_boolean (value, drmsink->zero_memcpy);
-      break;
-
-    case PROP_LCD:
-      g_value_set_boolean (value, drmsink->lcd);
       break;
 
     case PROP_CX:
@@ -1153,11 +1094,10 @@ gst_drmsink_pan_display (GstFramebufferSink * framebuffersink,
   uint32_t connectors[1];
   uint32_t cx, cy, cw, ch, sx, sy, sw, sh;
 
+  
   GST_LOG_OBJECT (framebuffersink,
       "pan_display called, mem = %p, map_address = %p",
       vmem, vmem->map_address);
-
-  if (drmsink->lcd) {
 
    cx = drmsink->plane->crtc_x;
    cy = drmsink->plane->crtc_y;
@@ -1176,8 +1116,8 @@ gst_drmsink_pan_display (GstFramebufferSink * framebuffersink,
 
    sx = 0;
    sy = 0;
-   sw = (drmsink->mode.hdisplay << 16);
-   sh = (drmsink->mode.vdisplay << 16);
+   sw=(cw) << 16;
+   sh=(ch) << 16;
 
     if (!drmsink->set_plane_initialized) {
       if (drmModeSetPlane (drmsink->fd, drmsink->plane->plane_id,
@@ -1187,20 +1127,6 @@ gst_drmsink_pan_display (GstFramebufferSink * framebuffersink,
       }
       drmsink->set_plane_initialized = TRUE;
     }
-
-  } else {
-
-	  if (!drmsink->crtc_mode_initialized) {
-		connectors[0] = drmsink->connector_id;
-		if (drmModeSetCrtc (drmsink->fd, drmsink->crtc_id,vmem->fb, 0, 0,
-				connectors, 1, &drmsink->mode)) {
-		  GST_ERROR_OBJECT (drmsink, "drmModeSetCrtc failed");
-		  return;
-		}
-		drmsink->crtc_mode_initialized = TRUE;
-	  }
-
-  }
 
   gst_drmsink_flush_drm_events (drmsink);
 

@@ -33,6 +33,8 @@
 #include <string.h>
 #include <stdio.h>
 
+int divRoundClosest(const int , const int );
+
 enum
 {
   PROP_0,
@@ -44,6 +46,10 @@ enum
   PROP_CROP_Y,
   PROP_CROP_WIDTH,
   PROP_CROP_HEIGHT,
+  PROP_X,
+  PROP_Y,
+  PROP_W,
+  PROP_H,
   PROP_MASK1_LOCATION,
   PROP_MASK1_X,
   PROP_MASK1_Y,
@@ -66,6 +72,8 @@ enum
 #define PROP_DEFAULT_MASK1_Y 0
 #define PROP_DEFAULT_MASK1_WIDTH 0
 #define PROP_DEFAULT_MASK1_HEIGHT 0
+#define PROP_DEFAULT_X 0
+#define PROP_DEFAULT_Y 0
 
 /* TODO: There are non standard formats missing, add them! */
 static GstStaticPadTemplate gst_g1_base_dec_src_pad_template =
@@ -185,13 +193,14 @@ gst_g1_base_dec_class_init (GstG1BaseDecClass * klass)
           PROP_DEFAULT_CROP_WIDTH, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_CROP_HEIGHT,
-      g_param_spec_uint ("crop-height",
-          "Crop Height",
-          "Height of the cropping area. Must be at least 1/3 the output image's "
-          "height-2 and multiple of 8. Setting crop width or height to 0 disables "
-          "cropping.", 0, 4672,
-          PROP_DEFAULT_CROP_HEIGHT,
-          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+       g_param_spec_uint ("crop-height",
+           "crop-height",
+           "Height of the cropping area. Must be at least 1/3 the output image's "
+           "height-2 and multiple of 8. Setting crop width or height to 0 disables "
+           "cropping.", 0, 4672,
+           PROP_DEFAULT_CROP_HEIGHT,
+           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
 
   g_object_class_install_property (gobject_class, PROP_MASK1_LOCATION,
       g_param_spec_string ("mask1-location",
@@ -233,6 +242,41 @@ gst_g1_base_dec_class_init (GstG1BaseDecClass * klass)
       g_param_spec_boolean ("use-drm", "Use DRM",
           "Identify fbdev or drm"
           "true/false", PROP_DEFAULT_USE_DRM, G_PARAM_READWRITE));
+
+  g_object_class_install_property (gobject_class, PROP_X,
+      g_param_spec_uint ("x",
+          "x",
+          "x position of video in the screen"
+          , 0, 4096,
+          PROP_DEFAULT_X,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_Y,
+       g_param_spec_uint ("y",
+           "y",
+           "y position of video in the screen "
+          , 0, 4096,
+           PROP_DEFAULT_Y,
+           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+
+  g_object_class_install_property (gobject_class, PROP_W,
+      g_param_spec_uint ("w",
+          "w",
+          "width of the screen"
+          , 0, 4096,
+          PROP_DEFAULT_X,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_H,
+       g_param_spec_uint ("h",
+           "h",
+           "height of the screen "
+          , 0, 4096,
+           PROP_DEFAULT_Y,
+           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+
 
   parent_class = g_type_class_peek_parent (klass);
 
@@ -286,6 +330,8 @@ gst_g1_base_dec_init (GstG1BaseDec * dec)
   dec->mask1_y = PROP_DEFAULT_MASK1_Y;
   dec->mask1_width = PROP_DEFAULT_MASK1_WIDTH;
   dec->mask1_height = PROP_DEFAULT_MASK1_HEIGHT;
+  dec->x = PROP_DEFAULT_X;
+  dec->y = PROP_DEFAULT_Y;
   dec->mask1_mem = NULL;
 }
 
@@ -560,6 +606,12 @@ gst_g1_base_dec_close (GstVideoDecoder * decoder)
   return g1decclass->close (g1dec);
 }
 
+int divRoundClosest(const int n, const int d)
+{
+  return ((n < 0) ^ (d < 0)) ? ((n - d/2)/d) : ((n + d/2)/d);
+}
+
+
 GstFlowReturn
 gst_g1_base_dec_allocate_output (GstG1BaseDec * dec, GstVideoCodecFrame * frame)
 {
@@ -584,6 +636,7 @@ gst_g1_base_dec_allocate_output (GstG1BaseDec * dec, GstVideoCodecFrame * frame)
     goto exit;
   }
 
+
   state = gst_video_decoder_get_output_state (bdec);
   vinfo = &state->info;
   finfo = vinfo->finfo;
@@ -599,16 +652,34 @@ gst_g1_base_dec_allocate_output (GstG1BaseDec * dec, GstVideoCodecFrame * frame)
         ("unable to allocate memory for post processor"), (NULL));
     goto stateunref;
   }
-  /* Atmel to identify fbdevsink or drmsink */
+
+  /* Whether to use fbdevsink or drmsink: drmsink plugin supports overlay video rendering */
   if (dec->use_drm) {
-    /* Atmel: Get physical address of gem object to pass to PP API */
+  /*If sink is drmsink, then get physical address of gem object, which needs to pass to PP API */
     physaddress = gst_g1_gem_get_physical ();
+
+  /* Width and Height of the video overlay taken from user */
+
+  	dec->ppconfig.ppOutFrmBuffer.enable = 1;
+    dec->ppconfig.ppOutFrmBuffer.writeOriginX = dec->x;
+    dec->ppconfig.ppOutFrmBuffer.writeOriginY = dec->y;
+    dec->ppconfig.ppOutFrmBuffer.frameBufferWidth = (divRoundClosest(dec->w, 16)*16);
+    dec->ppconfig.ppOutFrmBuffer.frameBufferHeight = (divRoundClosest(dec->h, 16)*16);
+
+    dec->ppconfig.ppOutImg.width = (divRoundClosest(GST_VIDEO_INFO_WIDTH (vinfo), 16)*16);
+    dec->ppconfig.ppOutImg.height =(divRoundClosest(GST_VIDEO_INFO_HEIGHT (vinfo), 16)*16);
+
   } else {
     /* It is mandatory for this buffer to be G1 */
     mem = gst_buffer_get_all_memory (frame->output_buffer);
     g_return_val_if_fail (GST_IS_G1_ALLOCATOR (mem->allocator), GST_FLOW_ERROR);
     physaddress = gst_g1_allocator_get_physical (mem);
+
+    dec->ppconfig.ppOutImg.width = GST_VIDEO_INFO_WIDTH (vinfo);
+    dec->ppconfig.ppOutImg.height = GST_VIDEO_INFO_HEIGHT (vinfo);
+
   }
+
 #define Y 0
 #define CbCr 1
 
@@ -616,27 +687,31 @@ gst_g1_base_dec_allocate_output (GstG1BaseDec * dec, GstVideoCodecFrame * frame)
       GST_VIDEO_INFO_PLANE_OFFSET (vinfo, Y);
   dec->ppconfig.ppOutImg.bufferChromaBusAddr =
       dec->ppconfig.ppOutImg.bufferBusAddr + GST_VIDEO_INFO_PLANE_OFFSET (vinfo,
-      CbCr);
+    CbCr);
   dec->ppconfig.ppOutImg.pixFormat = gst_g1_format_gst_to_pp (finfo);
-  dec->ppconfig.ppOutImg.width = GST_VIDEO_INFO_WIDTH (vinfo);
-  dec->ppconfig.ppOutImg.height = GST_VIDEO_INFO_HEIGHT (vinfo);
   dec->ppconfig.ppOutRgb.ditheringEnable = 1;
 
-  dec->ppconfig.ppOutFrmBuffer.enable = 0;
-  dec->ppconfig.ppOutFrmBuffer.writeOriginX = 200;
-  dec->ppconfig.ppOutFrmBuffer.writeOriginY = 120;
-  dec->ppconfig.ppOutFrmBuffer.frameBufferWidth = 400;
-  dec->ppconfig.ppOutFrmBuffer.frameBufferHeight = 240;
+
+#if 0
+   dec->ppconfig.ppOutFrmBuffer.enable = 0;
+   dec->ppconfig.ppOutFrmBuffer.writeOriginX = 200;
+   dec->ppconfig.ppOutFrmBuffer.writeOriginY = 120;
+   dec->ppconfig.ppOutFrmBuffer.frameBufferWidth = 400;
+   dec->ppconfig.ppOutFrmBuffer.frameBufferHeight = 240;
+#endif
+
 
   ppret = PPSetConfig (dec->pp, &dec->ppconfig);
   if (GST_G1_PP_FAILED (ppret)) {
     GST_ERROR_OBJECT (dec, gst_g1_result_pp (ppret));
     ret = GST_FLOW_ERROR;
+    printf("ppsetconfig failed =%s\n",gst_g1_result_pp (ppret));
     goto memunref;
   }
 
   ret = GST_FLOW_OK;
-  GST_LOG_OBJECT (dec, "Succesfully allocated memory 0x%08x", physaddress);
+  GST_LOG_OBJECT (dec, "Successfully allocated memory 0x%08x", physaddress);
+
 
 memunref:
   {
@@ -717,7 +792,7 @@ gst_g1_base_dec_set_property (GObject * object, guint prop_id,
           (gint) g_value_get_uint (value));
       break;
     case PROP_MASK1_LOCATION:
-      g_print ("Locatio=%s\n", g_value_get_string (value));
+      g_print ("Location=%s\n", g_value_get_string (value));
       gst_g1_base_dec_config_mask1 (g1dec, g_value_get_string (value),
           -1, -1, -1, -1);
       break;
@@ -740,6 +815,19 @@ gst_g1_base_dec_set_property (GObject * object, guint prop_id,
     case PROP_USE_DRM:
       g1dec->use_drm = g_value_get_boolean (value);
       break;
+    case PROP_X:
+    	g1dec->x= ( gint) g_value_get_uint (value);
+    	break;
+   case PROP_Y:
+	   g1dec->y= ( gint) g_value_get_uint (value);
+	   break;
+   case PROP_W:
+	   g1dec->w= ( gint) g_value_get_uint (value);
+	   break;
+  case PROP_H:
+	   g1dec->h= ( gint) g_value_get_uint (value);
+	   break;
+
 
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -778,6 +866,18 @@ gst_g1_base_dec_get_property (GObject * object, guint prop_id,
     case PROP_CROP_HEIGHT:
       g_value_set_uint (value, g1dec->crop_height);
       break;
+    case PROP_X:
+       g_value_set_uint (value, g1dec->x);
+       break;
+    case PROP_Y:
+       g_value_set_uint (value, g1dec->y);
+       break;
+    case PROP_W:
+	   g_value_set_uint (value, g1dec->x);
+	   break;
+	case PROP_H:
+	   g_value_set_uint (value, g1dec->y);
+	   break;
     case PROP_MASK1_LOCATION:
       g_value_set_string (value, g1dec->mask1_location);
       break;

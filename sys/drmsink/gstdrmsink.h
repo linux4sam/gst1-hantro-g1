@@ -1,5 +1,7 @@
 /* GStreamer drmsink plugin
  * Copyright (C) 2013 Harm Hanemaaijer <fgenfb@yahoo.com>
+ * Copyright (C) 2015 Atmel Corporation <venkateshprabhu.subramanian@atmel.com>
+ *
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -60,12 +62,11 @@ struct _GstDrmsink
   gboolean vblank_occurred;
   gboolean page_flip_pending;
   gboolean page_flip_occurred;
-  int cx;
-  int cy;
-  int cw;
-  int ch;
+  uint32_t cx;
+  uint32_t cy;
+  uint32_t cw;
+  uint32_t ch;
   gboolean zero_memcpy;
-  gboolean lcd;
 
   /* GST */
   GstVideoRectangle screen_rect;

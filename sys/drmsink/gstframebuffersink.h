@@ -1,5 +1,6 @@
 /* GStreamer GstFramebufferSink class
  * Copyright (C) 2013 Harm Hanemaaijer <fgenfb@yahoo.com>
+ * Copyright (C) 2015 Atmel Corporation <venkateshprabhu.subramanian@atmel.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
