@@ -111,6 +111,8 @@ static gboolean gst_g1_base_dec_decide_allocation (GstVideoDecoder * decoder,
     GstQuery * query);
 static gboolean gst_g1_base_dec_propose_allocation (GstVideoDecoder * decoder,
     GstQuery * query);
+static gboolean gst_g1_base_dec_sink_query (GstVideoDecoder * decoder,
+    GstQuery * query);
 
 static gboolean gst_g1_base_dec_copy_memory (GstG1BaseDec * dec,
     GstMemory ** dst, GstMemory * src);
@@ -292,6 +294,7 @@ gst_g1_base_dec_class_init (GstG1BaseDecClass * klass)
       GST_DEBUG_FUNCPTR (gst_g1_base_dec_decide_allocation);
   vdec_class->propose_allocation =
       GST_DEBUG_FUNCPTR (gst_g1_base_dec_propose_allocation);
+  vdec_class->sink_query = GST_DEBUG_FUNCPTR(gst_g1_base_dec_sink_query);
 
   gst_element_class_add_pad_template (element_class,
       gst_static_pad_template_get (&gst_g1_base_dec_src_pad_template));
@@ -1227,4 +1230,33 @@ exit:
   {
     return ret;
   }
+}
+
+static gboolean
+gst_g1_base_dec_sink_query (GstVideoDecoder * decoder,
+    GstQuery * query)
+{
+  GstPad *pad = GST_VIDEO_DECODER_SINK_PAD (decoder);
+  gboolean ret = FALSE;
+
+  GST_INFO_OBJECT (decoder, "handling query: %" GST_PTR_FORMAT, query);
+
+  switch (GST_QUERY_TYPE (query)) {
+    case GST_QUERY_CAPS:{
+      GstCaps *caps;
+
+      /* Create caps structure */
+      caps = gst_caps_new_simple("video/x-h264",
+                "stream-format", G_TYPE_STRING, "byte-stream", NULL);
+      gst_query_set_caps_result (query, caps);
+      gst_caps_unref (caps);
+      ret = TRUE;
+      break;
+    }
+    default:
+      ret = gst_pad_query_default (pad, GST_OBJECT (decoder), query);
+      break;
+  }
+
+  return ret;
 }
