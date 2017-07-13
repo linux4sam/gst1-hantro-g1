@@ -1,6 +1,8 @@
 /* GStreamer G1 plugin
  *
  * Copyright (C) 2014-2015  Atmel Corporation.
+ *                    2017 Microchip Technology Inc.
+ *              Sandeep Sheriker M <sandeepsheriker.mallikarjun@microchip.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -21,11 +23,14 @@
 #include <gst/gst.h>
 #include <gst/video/video.h>
 #include <h264decapi.h>
+#include <mp4decapi.h>
 #include <ppapi.h>
 
 G_BEGIN_DECLS
 
 GstVideoFormatInfo gst_g1_format_h264_to_gst (H264DecOutFormat fmt);
+
+GstVideoFormatInfo gst_g1_format_mp4_to_gst (MP4DecOutFormat fmt);
 
 guint32 gst_g1_format_gst_to_pp (GstVideoFormatInfo * finfo);
 

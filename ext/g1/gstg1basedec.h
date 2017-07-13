@@ -1,6 +1,8 @@
 /* GStreamer G1 plugin
  *
  * Copyright (C) 2014-2015  Atmel Corporation.
+ * Copyright (C) 2017 Microchip Technology Inc.
+ *              Sandeep Sheriker M <sandeepsheriker.mallikarjun@microchip.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -82,6 +84,8 @@ struct _GstG1BaseDecClass
     gboolean (*open) (GstG1BaseDec * dec);
     gboolean (*close) (GstG1BaseDec * dec);
     GstFlowReturn (*decode) (GstG1BaseDec * dec, GstVideoCodecFrame * frame);
+    GstFlowReturn (*decode_header) (GstG1BaseDec * dec,
+      GstBuffer * streamheader);
 };
 
 GType gst_g1_base_dec_get_type (void);

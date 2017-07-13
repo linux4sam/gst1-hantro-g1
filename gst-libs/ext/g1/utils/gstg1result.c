@@ -1,6 +1,8 @@
 /* GStreamer G1 plugin
  *
  * Copyright (C) 2014-2015  Atmel Corporation.
+ *               2017 Microchip Technology Inc.
+ *              Sandeep Sheriker M <sandeepsheriker.mallikarjun@microchip.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -193,6 +195,78 @@ gst_g1_result_h264 (H264DecRet r)
       break;
     case H264DEC_FORMAT_NOT_SUPPORTED:
       ret = "format not supported";
+      break;
+    default:
+      g_return_val_if_reached ("(Invalid code)");
+  }
+  return ret;
+}
+
+const gchar *
+gst_g1_result_mp4 (MP4DecRet r)
+{
+  const gchar *ret;
+
+  switch (r) {
+    case MP4DEC_OK:
+      ret = "ok";
+      break;
+    case MP4DEC_PARAM_ERROR:
+      ret = "Instance pointer pDecInst was NULL";
+      break;
+    case MP4DEC_INITFAIL:
+      ret = "The decoder could not be initialized";
+      break;
+    case MP4DEC_MEMFAIL:
+      ret = "The decoder was not able to allocate memory";
+      break;
+    case MP4DEC_DWL_ERROR:
+      ret = "The system wrapper layer of the decoder failed to initialize.";
+      break;
+    case MP4DEC_FORMAT_NOT_SUPPORTED:
+      ret = "The decoder HW does not support the selected format";
+      break;
+    case MP4DEC_STRM_ERROR:
+      ret = "stream error";
+      break;
+    case MP4DEC_STRM_PROCESSED:
+      ret = "Frame successfully processed";
+      break;
+    case MP4DEC_PIC_RDY:
+      ret = "picture available for output";
+      break;
+    case MP4DEC_PIC_DECODED:
+      ret = "picture decoded";
+      break;
+    case MP4DEC_HDRS_RDY:
+      ret = "headers decoded";
+      break;
+    case MP4DEC_DP_HDRS_RDY:
+      ret = "headers decoded available to read";
+      break;
+    case MP4DEC_VOS_END:
+      ret = "Video object stream end code encountered";
+      break;
+    case MP4DEC_HDRS_NOT_RDY:
+      ret = "Stream headers have not decoded";
+      break;
+    case MP4DEC_NOT_INITIALIZED:
+      ret = "Decoder instance is not initialized";
+      break;
+    case MP4DEC_STRM_NOT_SUPPORTED:
+      ret = "Unsupported picture size";
+      break;
+    case MP4DEC_HW_RESERVED:
+      ret = "hardware reserved";
+      break;
+    case MP4DEC_HW_TIMEOUT:
+      ret = "hardware timeout";
+      break;
+    case MP4DEC_HW_BUS_ERROR:
+      ret = "hardware bus error";
+      break;
+    case MP4DEC_SYSTEM_ERROR:
+      ret = "system error";
       break;
     default:
       g_return_val_if_reached ("(Invalid code)");

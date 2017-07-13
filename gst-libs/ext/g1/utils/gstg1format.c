@@ -1,6 +1,8 @@
 /* GStreamer G1 plugin
  *
  * Copyright (C) 2014-2015  Atmel Corporation.
+ *                    2017 Microchip Technology Inc.
+ *              Sandeep Sheriker M <sandeepsheriker.mallikarjun@microchip.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,6 +18,36 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "gstg1format.h"
+
+GstVideoFormatInfo
+gst_g1_format_mp4_to_gst (MP4DecOutFormat fmt)
+{
+  GstVideoFormatInfo finfo = (const GstVideoFormatInfo) { 0 };
+
+  switch (fmt) {
+    case MP4DEC_SEMIPLANAR_YUV420:
+      finfo.name = "NV12";
+      finfo.description = "raster semiplanar 4:2:0 YUV";
+      finfo.format = GST_VIDEO_FORMAT_NV12;
+      finfo.flags |= GST_VIDEO_FORMAT_FLAG_YUV;
+      break;
+    case MP4DEC_TILED_YUV420:
+      finfo.name = "NV12";
+      finfo.description = "tiled semiplanar 4:2:0 YUV";
+      finfo.format = GST_VIDEO_FORMAT_NV12;
+      finfo.flags |= GST_VIDEO_FORMAT_FLAG_YUV;
+      /* This version of gstreamer doesn't have support for tiles yet */
+      //finfo.flags |= GST_VIDEO_FORMAT_FLAG_TILED;
+      g_return_val_if_reached (finfo);
+      break;
+    default:
+    g_return_val_if_reached ((const GstVideoFormatInfo) {
+        0});
+  }
+
+  return finfo;
+}
+
 
 GstVideoFormatInfo
 gst_g1_format_h264_to_gst (H264DecOutFormat fmt)

@@ -1,5 +1,7 @@
  /*
   * Copyright (C) 2014-2015  Atmel Corporation.
+  * Copyright (C) 2017 Microchip Technology Inc.
+  *              Sandeep Sheriker M <sandeepsheriker.mallikarjun@microchip.com>
   *
   * This library is free software; you can redistribute it and/or
   * modify it under the terms of the GNU Lesser General Public
@@ -130,7 +132,7 @@ static void gst_g1_base_dec_config_saturation (GstG1BaseDec * g1dec,
 static void gst_g1_base_dec_config_crop (GstG1BaseDec * g1dec,
     gint x, gint y, gint width, gint height);
 static void gst_g1_base_dec_config_mask1 (GstG1BaseDec * g1dec,
-    gchar * location, gint x, gint y, gint width, gint height);
+    const gchar * location, gint x, gint y, gint width, gint height);
 
 static void
 gst_g1_base_dec_class_init (GstG1BaseDecClass * klass)
@@ -491,6 +493,60 @@ srcerror:
 }
 
 static GstFlowReturn
+gst_g1_base_dec_stream_header (GstVideoDecoder * decoder)
+{
+  GstG1BaseDec *g1dec;
+  GstG1BaseDecClass *g1decclass;
+  GstMemory *mem, *g1mem;
+  GstFlowReturn ret = GST_FLOW_OK;
+  GstCaps *sinkcaps;
+  const gchar *mimetype;
+  const GstStructure *structure;
+  GstBuffer *streamheader = NULL;
+  gchar *desc = NULL;
+  const GValue *value = NULL;
+
+  g1dec = GST_G1_BASE_DEC (decoder);
+  g1decclass = GST_G1_BASE_DEC_CLASS (G_OBJECT_GET_CLASS (g1dec));
+
+  sinkcaps = gst_pad_get_allowed_caps (GST_VIDEO_DECODER_SINK_PAD (decoder));
+  sinkcaps = gst_caps_fixate (sinkcaps);
+  desc = gst_caps_to_string (sinkcaps);
+
+  structure = gst_caps_get_structure (sinkcaps, 0);
+  mimetype = gst_structure_get_name (structure);
+  if (!strcmp (mimetype, "video/mpeg")) {
+    if ((value = gst_structure_get_value (structure, "codec_data"))) {
+      streamheader = gst_value_get_buffer (value);
+    }
+  }
+
+  if (streamheader != NULL) {
+    mem = gst_buffer_get_all_memory (streamheader);
+    if (!GST_IS_G1_ALLOCATOR (mem->allocator)) {
+      if (!gst_g1_base_dec_copy_memory (g1dec, &g1mem, mem)) {
+        GST_ERROR_OBJECT (g1dec,
+            "unable to copy stream header to contiguous memory");
+        ret = GST_FLOW_NOT_SUPPORTED;
+        goto exit;
+      }
+      gst_memory_unref (mem);
+      streamheader = gst_buffer_make_writable (streamheader);
+      gst_buffer_replace_all_memory (streamheader, g1mem);
+    }
+
+    GST_FIXME_OBJECT (g1dec, "Passing stream header to decoder");
+    g_return_val_if_fail (g1decclass->decode_header, GST_FLOW_NOT_SUPPORTED);
+    ret = g1decclass->decode_header (g1dec, streamheader);
+  }
+
+exit:
+  if (desc)
+    g_free (desc);
+  return ret;
+}
+
+static GstFlowReturn
 gst_g1_base_dec_handle_frame (GstVideoDecoder * decoder,
     GstVideoCodecFrame * frame)
 {
@@ -544,7 +600,10 @@ gst_g1_base_dec_set_format (GstVideoDecoder * decoder,
   GstCaps *caps;
   GstVideoInfo vinfo;
   gboolean ret;
-  gchar *desc;
+  gchar *desc = NULL;
+
+  if (dec->dectype != PP_PIPELINED_DEC_TYPE_H264)
+    gst_g1_base_dec_stream_header (decoder);
 
   caps = gst_pad_get_allowed_caps (GST_VIDEO_DECODER_SRC_PAD (decoder));
   caps = gst_caps_fixate (caps);
@@ -578,7 +637,8 @@ gst_g1_base_dec_set_format (GstVideoDecoder * decoder,
 
 exit:
   {
-    g_free (desc);
+    if (desc)
+      g_free (desc);
     return ret;
   }
 }
@@ -977,13 +1037,13 @@ gst_g1_base_dec_config_saturation (GstG1BaseDec * g1dec, gint saturation)
 
 static void
 gst_g1_base_dec_config_mask1 (GstG1BaseDec * g1dec,
-    gchar * location, gint x, gint y, gint width, gint height)
+    const gchar * location, gint x, gint y, gint width, gint height)
 {
   FILE *rgbfile = NULL;
   gsize rgbsize;
   gchar *tmplocation;
 
-  if (location != -1) {
+  if (location != NULL) {
     tmplocation = g1dec->mask1_location;
 
     if (location) {
@@ -1232,6 +1292,7 @@ exit:
 static gboolean
 gst_g1_base_dec_sink_query (GstVideoDecoder * decoder, GstQuery * query)
 {
+  GstG1BaseDec *g1dec = GST_G1_BASE_DEC (decoder);
   GstPad *pad = GST_VIDEO_DECODER_SINK_PAD (decoder);
   gboolean ret = FALSE;
 
@@ -1242,11 +1303,24 @@ gst_g1_base_dec_sink_query (GstVideoDecoder * decoder, GstQuery * query)
       GstCaps *caps;
 
       /* Create caps structure */
-      caps = gst_caps_new_simple ("video/x-h264",
-          "stream-format", G_TYPE_STRING, "byte-stream", NULL);
-      gst_query_set_caps_result (query, caps);
-      gst_caps_unref (caps);
-      ret = TRUE;
+      if (g1dec->dectype == PP_PIPELINED_DEC_TYPE_H264) {
+        caps = gst_caps_new_simple ("video/x-h264",
+            "stream-format", G_TYPE_STRING, "byte-stream", NULL);
+        gst_query_set_caps_result (query, caps);
+        gst_caps_unref (caps);
+        ret = TRUE;
+      } else if (g1dec->dectype == PP_PIPELINED_DEC_TYPE_MPEG4) {
+        caps = gst_caps_new_simple ("video/mpeg",
+            "systemstream", G_TYPE_BOOLEAN, FALSE,
+            "mpegversion", G_TYPE_INT, 4, NULL);
+        gst_caps_append (caps, gst_caps_new_simple ("video/x-h263",
+                "variant", G_TYPE_STRING, "itu", NULL));
+        gst_query_set_caps_result (query, caps);
+        gst_caps_unref (caps);
+        ret = TRUE;
+      } else {
+        ret = gst_pad_query_default (pad, GST_OBJECT (decoder), query);
+      }
       break;
     }
     default:

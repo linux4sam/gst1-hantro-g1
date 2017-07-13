@@ -1,6 +1,8 @@
 /* GStreamer G1 plugin
  *
  * Copyright (C) 2014-2015  Atmel Corporation.
+ * Copyright (C) 2017 Microchip Technology Inc.
+ *			 Sandeep Sheriker M <sandeepsheriker.mallikarjun@microchip.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -22,6 +24,7 @@
 #endif
 
 #include "gstg1h264dec.h"
+#include "gstg1mp4dec.h"
 #include "gstdwlallocator.h"
 
 /* Register of all the elements of the plugin */
@@ -33,6 +36,9 @@ plugin_init (GstPlugin * plugin)
 
   if (!gst_element_register (plugin, "g1h264dec", GST_RANK_PRIMARY,
           GST_TYPE_G1_H264_DEC))
+    return FALSE;
+  if (!gst_element_register (plugin, "g1mp4dec", GST_RANK_PRIMARY,
+          GST_TYPE_G1_MP4_DEC))
     return FALSE;
 
   return TRUE;
