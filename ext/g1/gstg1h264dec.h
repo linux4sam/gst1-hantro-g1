@@ -23,7 +23,6 @@
 #include "h264decapi.h"
 
 G_BEGIN_DECLS
-
 #define GST_TYPE_G1_H264_DEC \
   (gst_g1_h264_dec_get_type())
 #define GST_G1_H264_DEC(obj) \
@@ -34,11 +33,11 @@ G_BEGIN_DECLS
   (G_TYPE_CHECK_INSTANCE_TYPE((obj),GST_TYPE_G1_H264_DEC))
 #define GST_IS_G1_H264_DEC_CLASS(klass) \
   (G_TYPE_CHECK_CLASS_TYPE((klass),GST_TYPE_G1_H264_DEC))
-
 typedef struct _GstG1H264Dec GstG1H264Dec;
 typedef struct _GstG1H264DecClass GstG1H264DecClass;
 
-struct _GstG1H264Dec {
+struct _GstG1H264Dec
+{
   GstG1BaseDec parent;
 
   gboolean skip_non_reference;
@@ -47,12 +46,12 @@ struct _GstG1H264Dec {
   gboolean use_display_smoothing;
 };
 
-struct _GstG1H264DecClass {
+struct _GstG1H264DecClass
+{
   GstG1BaseDecClass parent_class;
 };
 
-GType gst_g1_h264_dec_get_type(void);
+GType gst_g1_h264_dec_get_type (void);
 
 G_END_DECLS
-
 #endif /*__GST_G1_H264_DEC_H__*/

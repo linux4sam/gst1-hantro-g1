@@ -22,7 +22,6 @@
 #include <gst/gstmemory.h>
 
 G_BEGIN_DECLS
-
 #define GST_TYPE_G1_ALLOCATOR \
   (gst_g1_allocator_get_type())
 #define GST_IS_G1_ALLOCATOR(obj) \
@@ -33,7 +32,6 @@ G_BEGIN_DECLS
   (G_TYPE_CHECK_INSTANCE_CAST((obj),GST_TYPE_G1_ALLOCATOR,GstG1Allocator))
 #define GST_G1_ALLOCATOR_CLASS(klass) \
   (G_TYPE_CHECK_CLASS_CAST((klass),GST_TYPE_G1_ALLOCATOR,GstG1AllocatorClass))
-
 typedef struct _GstG1Memory GstG1Memory;
 typedef struct _GstG1Allocator GstG1Allocator;
 typedef struct _GstG1AllocatorClass GstG1AllocatorClass;
@@ -66,8 +64,8 @@ GType gst_g1_allocator_get_type (void);
  *
  * @return The physical address of the data or 0 if the mem was not
  * allocated by a G1 allocator.
- */ 
-guint32 gst_g1_allocator_get_physical (GstMemory *mem);
+ */
+guint32 gst_g1_allocator_get_physical (GstMemory * mem);
 
 G_END_DECLS
 #endif /*_GST_G1_ALLOCATOR_H_*/

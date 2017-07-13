@@ -675,14 +675,13 @@ gst_framebuffersink_put_image_memcpy (GstFramebufferSink * framebuffersink,
 
   mapinfo.data = NULL;
   res =
-      gst_memory_map (framebuffersink->
-      screens[framebuffersink->current_framebuffer_index], &mapinfo,
-      GST_MAP_WRITE);
+      gst_memory_map (framebuffersink->screens[framebuffersink->
+          current_framebuffer_index], &mapinfo, GST_MAP_WRITE);
   if (!res || mapinfo.data == NULL) {
     GST_ERROR_OBJECT (framebuffersink, "Could not map video memory");
     if (res)
-      gst_memory_unmap (framebuffersink->
-          screens[framebuffersink->current_framebuffer_index], &mapinfo);
+      gst_memory_unmap (framebuffersink->screens[framebuffersink->
+              current_framebuffer_index], &mapinfo);
     return;
   }
   dest = mapinfo.data;
@@ -701,8 +700,8 @@ gst_framebuffersink_put_image_memcpy (GstFramebufferSink * framebuffersink,
       src += framebuffersink->source_video_width_in_bytes[0];
       dest += dest_stride;
     }
-  gst_memory_unmap (framebuffersink->
-      screens[framebuffersink->current_framebuffer_index], &mapinfo);
+  gst_memory_unmap (framebuffersink->screens[framebuffersink->
+          current_framebuffer_index], &mapinfo);
   return;
 }
 
@@ -1974,7 +1973,7 @@ reconfigure:
     if (framebuffersink->flip_buffers == 0
         && framebuffersink->nu_screens_used > 3)
       framebuffersink->nu_screens_used = 2;
-    }
+  }
   if (framebuffersink->use_buffer_pool) {
     GstBufferPool *pool;
     pool = gst_framebuffersink_allocate_buffer_pool (framebuffersink, caps,
@@ -2441,7 +2440,7 @@ gst_framebuffersink_show_frame (GstVideoSink * vsink, GstBuffer * buf)
 
   if (framebuffersink->zeromemcpy) {
     res = gst_framebuffersink_show_plane_overlay (framebuffersink, buf);
-    	return res;
+    return res;
   } else {
     if (framebuffersink->use_hardware_overlay)
       res = gst_framebuffersink_show_frame_overlay (framebuffersink, buf);

@@ -27,14 +27,13 @@
 #include <gst/video/video.h>
 
 G_BEGIN_DECLS
-
-
 /* We can't reuse GstVideoAlignment because the horizontal padding might be
    different for different planes. */
 typedef struct _GstFramebufferSinkOverlayVideoAlignment
     GstFramebufferSinkOverlayVideoAlignment;
 
-struct _GstFramebufferSinkOverlayVideoAlignment {
+struct _GstFramebufferSinkOverlayVideoAlignment
+{
   guint padding_top;
   guint padding_bottom;
   guint padding_left[GST_VIDEO_MAX_PLANES];
@@ -61,7 +60,7 @@ typedef struct _GstFramebufferSinkClass GstFramebufferSinkClass;
 
 struct _GstFramebufferSink
 {
-  GstVideoSink videosink; /* Includes width and height. */
+  GstVideoSink videosink;       /* Includes width and height. */
 
   /* Configurable properties. */
   gboolean silent;
@@ -149,13 +148,14 @@ struct _GstFramebufferSinkClass
      gst_framebuffersink_open_hardware_fbdev() for a default fbdev hardware
      initialization. Should return TRUE on success, and fill in the video info
      corresponding to the screen framebuffer format. */
-  gboolean (*open_hardware) (GstFramebufferSink *framebuffersink, GstVideoInfo *
-      info, gsize *video_memory_size, gsize *pannable_video_memory_size);
-  void (*close_hardware) (GstFramebufferSink *framebuffersink);
-  void (*pan_display) (GstFramebufferSink *framebuffersink, GstMemory *vmem);
-  void (*wait_for_vsync) (GstFramebufferSink *framebuffersink);
-  GstVideoFormat * (*get_supported_overlay_formats) (
-      GstFramebufferSink *framebuffersink);
+    gboolean (*open_hardware) (GstFramebufferSink * framebuffersink,
+      GstVideoInfo * info, gsize * video_memory_size,
+      gsize * pannable_video_memory_size);
+  void (*close_hardware) (GstFramebufferSink * framebuffersink);
+  void (*pan_display) (GstFramebufferSink * framebuffersink, GstMemory * vmem);
+  void (*wait_for_vsync) (GstFramebufferSink * framebuffersink);
+  GstVideoFormat *(*get_supported_overlay_formats) (GstFramebufferSink *
+      framebuffersink);
   /* Return the video alignment (top/bottom/left/right padding and stride
      alignment for each plane) that is required to display the overlay
      described by video_info. Also returns the alignment requirement of the
@@ -163,16 +163,17 @@ struct _GstFramebufferSinkClass
      set to TRUE if the alignment defined by video_info did not have to be
      adjusted, FALSE otherwise. The function returns TRUE if hardware overlay
      with given video info is supported, FALSE otherwise. */
-  gboolean (*get_overlay_video_alignment) (GstFramebufferSink *framebuffersink,
-      GstVideoInfo *video_info, GstFramebufferSinkOverlayVideoAlignment *
-      video_alignment, gint *overlay_align, gboolean *video_alignment_matches);
-  gboolean (*prepare_overlay) (GstFramebufferSink *framebuffersink,
+    gboolean (*get_overlay_video_alignment) (GstFramebufferSink
+      * framebuffersink, GstVideoInfo * video_info,
+      GstFramebufferSinkOverlayVideoAlignment * video_alignment,
+      gint * overlay_align, gboolean * video_alignment_matches);
+    gboolean (*prepare_overlay) (GstFramebufferSink * framebuffersink,
       GstVideoFormat format);
-  GstFlowReturn (*show_overlay) (GstFramebufferSink *framebuffersink,
-      GstMemory *memory);
-  GstAllocator * (*video_memory_allocator_new) (
-      GstFramebufferSink *framebuffersink, GstVideoInfo *info,
-      gboolean pannable, gboolean is_overlay);
+    GstFlowReturn (*show_overlay) (GstFramebufferSink * framebuffersink,
+      GstMemory * memory);
+  GstAllocator *(*video_memory_allocator_new) (GstFramebufferSink *
+      framebuffersink, GstVideoInfo * info, gboolean pannable,
+      gboolean is_overlay);
 };
 
 GType gst_framebuffersink_get_type (void);
@@ -181,12 +182,12 @@ GType gst_framebuffersink_get_type (void);
 
 /* Utility function. */
 
-void gst_framebuffersink_set_overlay_video_alignment_from_scanline_alignment (
-    GstFramebufferSink *framebuffersink, GstVideoInfo *video_info,
+void
+gst_framebuffersink_set_overlay_video_alignment_from_scanline_alignment
+    (GstFramebufferSink * framebuffersink, GstVideoInfo * video_info,
     gint scanline_align, gboolean strict_alignment,
-    GstFramebufferSinkOverlayVideoAlignment *video_alignment,
-    gboolean *video_alignment_matches);
+    GstFramebufferSinkOverlayVideoAlignment * video_alignment,
+    gboolean * video_alignment_matches);
 
 G_END_DECLS
-
 #endif

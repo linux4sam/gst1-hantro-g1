@@ -28,7 +28,6 @@
 #include <linux/fb.h>
 
 G_BEGIN_DECLS
-
 #define GST_TYPE_G1_FBDEVSINK \
   (gst_g1_fbdevsink_get_type())
 #define GST_G1_FBDEVSINK(obj) \
@@ -39,14 +38,14 @@ G_BEGIN_DECLS
   (G_TYPE_CHECK_INSTANCE_TYPE((obj),GST_TYPE_G1_FBDEVSINK))
 #define GST_IS_G1_FBDEVSINK_CLASS(klass) \
   (G_TYPE_CHECK_CLASS_TYPE((klass),GST_TYPE_G1_FBDEVSINK))
-
 typedef struct _GstG1FBDEVSink GstG1FBDEVSink;
 typedef struct _GstG1FBDEVSinkClass GstG1FBDEVSinkClass;
 
-struct _GstG1FBDEVSink {
+struct _GstG1FBDEVSink
+{
   GstVideoSink videosink;
 
-  /*< private >*/
+  /*< private > */
   struct fb_fix_screeninfo fixinfo;
   struct fb_var_screeninfo varinfo;
 
@@ -64,13 +63,13 @@ struct _GstG1FBDEVSink {
   gboolean zero_memcpy;
 };
 
-struct _GstG1FBDEVSinkClass {
+struct _GstG1FBDEVSinkClass
+{
   GstVideoSinkClass videosink_class;
 
 };
 
-GType gst_g1_fbdevsink_get_type(void);
+GType gst_g1_fbdevsink_get_type (void);
 
 G_END_DECLS
-
 #endif /* __GST_G1_FBDEVSINK_H__ */

@@ -247,15 +247,15 @@ gst_g1_fbdevsink_setcaps (GstBaseSink * bsink, GstCaps * vscapslist)
   fbdevsink->bytespp = fbdevsink->fixinfo.line_length / fbdevsink->varinfo.xres;
 
   if (fbdevsink->cx == DEFAULT_CX) {
-  fbdevsink->cx = ((int) fbdevsink->varinfo.xres - fbdevsink->width) / 2;
-  if (fbdevsink->cx < 0)
-    fbdevsink->cx = 0;
+    fbdevsink->cx = ((int) fbdevsink->varinfo.xres - fbdevsink->width) / 2;
+    if (fbdevsink->cx < 0)
+      fbdevsink->cx = 0;
   }
 
   if (fbdevsink->cy == DEFAULT_CY) {
-  fbdevsink->cy = ((int) fbdevsink->varinfo.yres - fbdevsink->height) / 2;
-  if (fbdevsink->cy < 0)
-    fbdevsink->cy = 0;
+    fbdevsink->cy = ((int) fbdevsink->varinfo.yres - fbdevsink->height) / 2;
+    if (fbdevsink->cy < 0)
+      fbdevsink->cy = 0;
   }
 
   fbdevsink->linelen = fbdevsink->width * fbdevsink->bytespp;
@@ -493,13 +493,11 @@ gst_g1_fbdevsink_class_init (GstG1FBDEVSinkClass * klass)
 
   g_object_class_install_property (G_OBJECT_CLASS (klass), ARG_CX,
       g_param_spec_int ("cx", "cx",
-          "offset of x in screen", -1, 800, DEFAULT_CX,
-          G_PARAM_READWRITE));
+          "offset of x in screen", -1, 800, DEFAULT_CX, G_PARAM_READWRITE));
 
   g_object_class_install_property (G_OBJECT_CLASS (klass), ARG_CY,
       g_param_spec_int ("cy", "cy",
-          "offset of y in screen", -1, 480, DEFAULT_CY,
-          G_PARAM_READWRITE));
+          "offset of y in screen", -1, 480, DEFAULT_CY, G_PARAM_READWRITE));
 
   basesink_class->set_caps = GST_DEBUG_FUNCPTR (gst_g1_fbdevsink_setcaps);
   basesink_class->get_caps = GST_DEBUG_FUNCPTR (gst_g1_fbdevsink_getcaps);

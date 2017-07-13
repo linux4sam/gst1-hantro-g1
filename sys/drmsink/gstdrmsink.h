@@ -27,9 +27,7 @@
 #include "gstframebuffersink.h"
 
 G_BEGIN_DECLS
-
 /* Main class. */
-
 #define GST_TYPE_DRMSINK (gst_drmsink_get_type ())
 #define GST_DRMSINK(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), \
     GST_TYPE_DRMSINK, GstDrmsink))
@@ -39,7 +37,6 @@ G_BEGIN_DECLS
     GST_TYPE_DRMSINK))
 #define GST_IS_DRMSINK_CLASS(obj) (G_TYPE_CHECK_CLASS_TYPE ((klass), \
     GST_TYPE_DRMSINK))
-
 typedef struct _GstDrmsink GstDrmsink;
 typedef struct _GstDrmsinkClass GstDrmsinkClass;
 
@@ -54,7 +51,7 @@ struct _GstDrmsink
   drmModeRes *resources;
   drmModePlaneRes *plane_resources;
   drmModePlane *plane;
-  drmModeModeInfo mode; 
+  drmModeModeInfo mode;
   drmEventContext *event_context;
   drmModeCrtc *saved_crtc;
   gboolean crtc_mode_initialized;
@@ -83,5 +80,4 @@ struct _GstDrmsinkClass
 GType gst_drmsink_get_type (void);
 
 G_END_DECLS
-
 #endif

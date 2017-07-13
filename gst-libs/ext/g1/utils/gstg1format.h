@@ -27,7 +27,7 @@ G_BEGIN_DECLS
 
 GstVideoFormatInfo gst_g1_format_h264_to_gst (H264DecOutFormat fmt);
 
-guint32 gst_g1_format_gst_to_pp (GstVideoFormatInfo *finfo);
+guint32 gst_g1_format_gst_to_pp (GstVideoFormatInfo * finfo);
 
 G_END_DECLS
 #endif //__GST_G1_FORMAT_H__
