@@ -20,11 +20,12 @@
 #include <gst/gst.h>
 
 #ifdef HAVE_CONFIG_H
-#  include "config.h"
+#include "config.h"
 #endif
 
 #include "gstg1h264dec.h"
 #include "gstg1mp4dec.h"
+#include "gstg1vp8dec.h"
 #include "gstdwlallocator.h"
 
 /* Register of all the elements of the plugin */
@@ -39,6 +40,9 @@ plugin_init (GstPlugin * plugin)
     return FALSE;
   if (!gst_element_register (plugin, "g1mp4dec", GST_RANK_PRIMARY,
           GST_TYPE_G1_MP4_DEC))
+    return FALSE;
+  if (!gst_element_register (plugin, "g1vp8dec", GST_RANK_PRIMARY,
+          GST_TYPE_G1_VP8_DEC))
     return FALSE;
 
   return TRUE;

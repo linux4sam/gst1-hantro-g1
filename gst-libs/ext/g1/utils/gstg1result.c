@@ -273,3 +273,81 @@ gst_g1_result_mp4 (MP4DecRet r)
   }
   return ret;
 }
+
+const gchar *
+gst_g1_result_vp8 (VP8DecRet r)
+{
+  const gchar *ret;
+
+  switch (r) {
+    case VP8DEC_OK:
+      ret = "ok";
+      break;
+    case VP8DEC_STRM_PROCESSED:
+      ret = "stream processed";
+      break;
+    case VP8DEC_PIC_RDY:
+      ret = "picture available for output";
+      break;
+    case VP8DEC_PIC_DECODED:
+      ret = "picture decoded";
+      break;
+    case VP8DEC_HDRS_RDY:
+      ret = "headers decoded";
+      break;
+    case VP8DEC_ADVANCED_TOOLS:
+      ret = "advanced coding tools detected";
+      break;
+    case VP8DEC_SLICE_RDY:
+      ret = "Finished processing a slice (partial picture).";
+      break;
+    case VP8DEC_END_OF_STREAM:
+      ret = "end of stream";
+      break;
+    case VP8DEC_PARAM_ERROR:
+      ret = "parameter error";
+      break;
+    case VP8DEC_STRM_ERROR:
+      ret = "stream error";
+      break;
+    case VP8DEC_NOT_INITIALIZED:
+      ret = "not initialized";
+      break;
+    case VP8DEC_MEMFAIL:
+      ret = "memory fail";
+      break;
+    case VP8DEC_INITFAIL:
+      ret = "init fail";
+      break;
+    case VP8DEC_HDRS_NOT_RDY:
+      ret = "headers not ready";
+      break;
+    case VP8DEC_STREAM_NOT_SUPPORTED:
+      ret = "stream not supported";
+      break;
+    case VP8DEC_HW_RESERVED:
+      ret = "hardware reserved";
+      break;
+    case VP8DEC_HW_TIMEOUT:
+      ret = "hardware timeout";
+      break;
+    case VP8DEC_HW_BUS_ERROR:
+      ret = "hardware bus error";
+      break;
+    case VP8DEC_SYSTEM_ERROR:
+      ret = "system error";
+      break;
+    case VP8DEC_DWL_ERROR:
+      ret = "dwl error";
+      break;
+    case VP8DEC_EVALUATION_LIMIT_EXCEEDED:
+      ret = "evaluation limit exceeded";
+      break;
+    case VP8DEC_FORMAT_NOT_SUPPORTED:
+      ret = "format not supported";
+      break;
+    default:
+      g_return_val_if_reached ("(Invalid code)");
+  }
+  return ret;
+}

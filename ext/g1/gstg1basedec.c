@@ -523,6 +523,10 @@ gst_g1_base_dec_stream_header (GstVideoDecoder * decoder)
     if ((value = gst_structure_get_value (structure, "codec_data"))) {
       streamheader = gst_value_get_buffer (value);
     }
+  } else if (!strcmp (mimetype, "video/x-vp8")) {
+    if ((value = gst_structure_get_value (structure, "streamheader"))) {
+      streamheader = gst_value_get_buffer (value);
+    }
   }
 
   if (streamheader != NULL) {
@@ -1319,6 +1323,11 @@ gst_g1_base_dec_sink_query (GstVideoDecoder * decoder, GstQuery * query)
             "mpegversion", G_TYPE_INT, 4, NULL);
         gst_caps_append (caps, gst_caps_new_simple ("video/x-h263",
                 "variant", G_TYPE_STRING, "itu", NULL));
+        gst_query_set_caps_result (query, caps);
+        gst_caps_unref (caps);
+        ret = TRUE;
+      } else if (g1dec->dectype == PP_PIPELINED_DEC_TYPE_VP8) {
+        caps = gst_caps_new_simple ("video/x-vp8", NULL);
         gst_query_set_caps_result (query, caps);
         gst_caps_unref (caps);
         ret = TRUE;
