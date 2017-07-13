@@ -1,15 +1,13 @@
 plugin_LTLIBRARIES = libgstdrmsink.la
-#LIBDRM_CFLAGS = ../../../libdrm/2.4.59-r0/libdrm-2.4.59/include/drm ../../../libdrm/2.4.59-r0/libdrm-2.4.59/include ../../../libdrm/2.4.59-r0/libdrm-2.4.59/ 
-LIBDRM_CFLAGS = $(GST_LIBDRM)/usr/include/libdrm $(GST_LIBDRM)/usr/include/drm
+LIBDRM_CFLAGS = `pkg-config --cflags libdrm --cflags libkms`
 libgstdrmsink_la_SOURCES = gstdrmsink.c gstframebuffersink.c
 libgstdrmsink_la_CFLAGS = \
         $(GST_PLUGINS_BASE_CFLAGS) \
         $(GST_CFLAGS) \
         $(LIBFBDEV_CFLAGS) \
-       -I$(top_builddir)/gst-libs/ext/g1/memalloc/      \
-       -I$(top_builddir)/gst-libs/ext/g1/bus/            \
-       -I$(LIBDRM_CFLAGS) \
-       -I$(GST_LIBDRM)/usr/include/libkms    
+        $(LIBDRM_CFLAGS) \
+       -I$(top_builddir)/gst-libs/ext/g1/memalloc \
+       -I$(top_builddir)/gst-libs/ext/g1/bus
                  
 libgstdrmsink_la_LIBADD = \
         $(GST_PLUGINS_BASE_LIBS) -lgstvideo-$(GST_API_VERSION) -lrt \
