@@ -29,6 +29,7 @@
  *  Alessandro Decina <alessandro.decina@collabora.co.uk>
  *  Víctor Manuel Jáquez Leal <vjaquez@igalia.com>
  *  Venkatesh Prabhu Seluka  <venkateshprabhu.subramanian@atmel.com>
+ *  Sandeep Sheriker M <sandeepsheriker.mallikarjun@microchip.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -84,7 +85,7 @@
 
 #define USE_DRM_PLANES
 
-#define DEFAULT_ZERO_MEMCPY FALSE
+#define DEFAULT_ZERO_MEMCPY TRUE
 #define DEFAULT_CX (0)
 #define DEFAULT_CY (0)
 #define DEFAULT_CW (0)
@@ -254,6 +255,12 @@ gst_drmsink_init (GstDrmsink * drmsink)
 
   /* Set the initial values of the properties. */
   drmsink->preferred_connector_id = -1;
+
+  /* Set the initial values of the propertie zero_memcpy. */
+  drmsink->zero_memcpy = DEFAULT_ZERO_MEMCPY;
+  /* Override the default value of the zeromemcpy property from
+     GstFramebufferSink. */
+  framebuffersink->zeromemcpy = drmsink->zero_memcpy;
 
   gst_drmsink_reset (drmsink);
 }

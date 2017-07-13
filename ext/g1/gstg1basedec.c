@@ -69,7 +69,7 @@ enum
 #define PROP_DEFAULT_CROP_WIDTH  0
 #define PROP_DEFAULT_CROP_HEIGHT 0
 #define PROP_DEFAULT_MASK1_LOCATION NULL
-#define PROP_DEFAULT_USE_DRM FALSE
+#define PROP_DEFAULT_USE_DRM TRUE
 #define PROP_DEFAULT_MASK1_X 0
 #define PROP_DEFAULT_MASK1_Y 0
 #define PROP_DEFAULT_MASK1_WIDTH 0
@@ -97,6 +97,8 @@ G_DEFINE_TYPE (GstG1BaseDec, gst_g1_base_dec, GST_TYPE_VIDEO_DECODER);
 /* Enable to get physical address of gem, 
    otherwise hardcoded physical address for debugging */
 #define ATMEL_GET_PHYSICAL
+
+extern guint32 gst_g1_gem_get_physical (void);
 
 static void gst_g1_base_dec_get_property (GObject * object, guint prop_id,
     GValue * value, GParamSpec * pspec);
@@ -330,6 +332,7 @@ gst_g1_base_dec_init (GstG1BaseDec * dec)
   dec->x = PROP_DEFAULT_X;
   dec->y = PROP_DEFAULT_Y;
   dec->mask1_mem = NULL;
+  dec->use_drm = PROP_DEFAULT_USE_DRM;
 }
 
 static gboolean
@@ -501,6 +504,7 @@ gst_g1_base_dec_stream_header (GstVideoDecoder * decoder)
   GstFlowReturn ret = GST_FLOW_OK;
   GstCaps *sinkcaps;
   const gchar *mimetype;
+
   const GstStructure *structure;
   GstBuffer *streamheader = NULL;
   gchar *desc = NULL;
@@ -716,7 +720,7 @@ gst_g1_base_dec_allocate_output (GstG1BaseDec * dec, GstVideoCodecFrame * frame)
 
     /* Width and Height of the video overlay taken from user */
 
-    dec->ppconfig.ppOutFrmBuffer.enable = 1;
+    dec->ppconfig.ppOutFrmBuffer.enable = 0;
     dec->ppconfig.ppOutFrmBuffer.writeOriginX = dec->x;
     dec->ppconfig.ppOutFrmBuffer.writeOriginY = dec->y;
     dec->ppconfig.ppOutFrmBuffer.frameBufferWidth =
