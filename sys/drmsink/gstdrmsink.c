@@ -382,15 +382,19 @@ gst_drmsink_find_mode_and_plane (GstDrmsink * drmsink, GstVideoRectangle * dim)
   if (!encoder)
     goto error_no_encoder;
 
-  /* XXX: just pick the first available mode, which has the highest
-   * resolution. */
-  mode = &connector->modes[0];
-  memcpy (&drmsink->mode, &connector->modes[0], sizeof (connector->modes[0]));
-
-  dim->x = dim->y = 0;
-  dim->w = mode->hdisplay;
-  dim->h = mode->vdisplay;
-  GST_INFO_OBJECT (drmsink, "connector mode = %dx%d", dim->w, dim->h);
+  /*Sama5d4 can support only up to 720p video format resolution*/
+  for(i=0; i < connector->count_modes; i++) {
+    mode = &connector->modes[i];
+    if((mode->hdisplay <= 1280) && (mode->vdisplay <= 720) ){
+      memcpy (&drmsink->mode, &connector->modes[i],
+        sizeof (connector->modes[i]));
+      dim->x = dim->y = 0;
+      dim->w = mode->hdisplay;
+      dim->h = mode->vdisplay;
+      GST_INFO_OBJECT (drmsink, "connector mode = %dx%d", dim->w, dim->h);
+      break;
+    }
+  }
 
   drmsink->crtc_id = encoder->crtc_id;
 
@@ -416,7 +420,7 @@ gst_drmsink_find_mode_and_plane (GstDrmsink * drmsink, GstVideoRectangle * dim)
       drmModeFreePlane (plane);
     }
   }
-
+  GST_INFO_OBJECT (drmsink,"Plane-id %d \n",drmsink->plane->plane_id);
   drmsink->plane->crtc_x = drmsink->cx;
   drmsink->plane->crtc_y = drmsink->cy;
 
