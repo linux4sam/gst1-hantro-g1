@@ -1,10 +1,12 @@
 /* GStreamer
  *
  * Copyright (C) 2016 Igalia
+ * Copyright (C) Microchip Technology Inc.
  *
  * Authors:
  *  Víctor Manuel Jáquez Leal <vjaquez@igalia.com>
  *  Javier Martin <javiermartin@by.com.es>
+ *  Sandeep Sheriker M <sandeepsheriker.mallikarjun@microchip.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -39,11 +41,18 @@
 
 #include "gstkmsallocator.h"
 #include "gstkmsutils.h"
+#include "gstg1kmssink.h"
+#include "gstg1allocator.h"
 
 #define GST_CAT_DEFAULT kmsallocator_debug
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 #define GST_KMS_MEMORY_TYPE "KMSMemory"
+
+#define DRM_ATMEL_GEM_GET		0x00
+
+#define DRM_IOCTL_ATMEL_GEM_GET		DRM_IOWR(DRM_COMMAND_BASE + \
+					DRM_ATMEL_GEM_GET, struct drm_mode_map_dumb)
 
 struct kms_bo
 {
@@ -103,12 +112,13 @@ gst_kms_allocator_memory_reset (GstKMSAllocator * allocator, GstKMSMemory * mem)
   if (!check_fd (allocator))
     return;
 
-  if (mem->fb_id) {
-    GST_DEBUG_OBJECT (allocator, "removing fb id %d", mem->fb_id);
-    drmModeRmFB (allocator->priv->fd, mem->fb_id);
-    mem->fb_id = 0;
+  if (allocator->kmssink->Ismaster) {
+    if (mem->fb_id) {
+      GST_DEBUG_OBJECT (allocator, "removing fb id %d", mem->fb_id);
+      drmModeRmFB (allocator->priv->fd, mem->fb_id);
+      mem->fb_id = 0;
+    }
   }
-
   if (!mem->bo)
     return;
 
@@ -119,13 +129,14 @@ gst_kms_allocator_memory_reset (GstKMSAllocator * allocator, GstKMSMemory * mem)
     mem->bo->ptr = NULL;
   }
 
-  arg.handle = mem->bo->handle;
-
-  err = drmIoctl (allocator->priv->fd, DRM_IOCTL_MODE_DESTROY_DUMB, &arg);
-  if (err)
-    GST_WARNING_OBJECT (allocator,
-        "Failed to destroy dumb buffer object: %s %d", strerror (errno), errno);
-
+  if (allocator->kmssink->Ismaster) {
+    arg.handle = mem->bo->handle;
+    err = drmIoctl (allocator->priv->fd, DRM_IOCTL_MODE_DESTROY_DUMB, &arg);
+    if (err)
+      GST_WARNING_OBJECT (allocator,
+          "Failed to destroy dumb buffer object: %s %d", strerror (errno),
+          errno);
+  }
   g_free (mem->bo);
   mem->bo = NULL;
 }
@@ -136,6 +147,8 @@ gst_kms_allocator_memory_create (GstKMSAllocator * allocator,
 {
   gint ret;
   struct drm_mode_create_dumb arg = { 0, };
+  struct drm_mode_map_dumb mreq = { 0, };
+  guint32 physaddress;
   guint32 fmt;
 
   if (kmsmem->bo)
@@ -148,19 +161,42 @@ gst_kms_allocator_memory_create (GstKMSAllocator * allocator,
   if (!kmsmem->bo)
     return FALSE;
 
-  fmt = gst_drm_format_from_video (GST_VIDEO_INFO_FORMAT (vinfo));
-  arg.bpp = gst_drm_bpp_from_drm (fmt);
-  arg.width = GST_VIDEO_INFO_WIDTH (vinfo);
-  arg.height = gst_drm_height_from_drm (fmt, GST_VIDEO_INFO_HEIGHT (vinfo));
+  if (allocator->kmssink->Ismaster) {
+    fmt = gst_drm_format_from_video (GST_VIDEO_INFO_FORMAT (vinfo));
+    arg.bpp = gst_drm_bpp_from_drm (fmt);
+    arg.width = GST_VIDEO_INFO_WIDTH (vinfo);
+    arg.height = gst_drm_height_from_drm (fmt, GST_VIDEO_INFO_HEIGHT (vinfo));
 
-  ret = drmIoctl (allocator->priv->fd, DRM_IOCTL_MODE_CREATE_DUMB, &arg);
-  if (ret)
-    goto create_failed;
+    ret = drmIoctl (allocator->priv->fd, DRM_IOCTL_MODE_CREATE_DUMB, &arg);
+    if (ret)
+      goto create_failed;
 
-  kmsmem->bo->handle = arg.handle;
-  kmsmem->bo->size = arg.size;
-  kmsmem->bo->pitch = arg.pitch;
+    kmsmem->bo->handle = arg.handle;
+    kmsmem->bo->size = arg.size;
+    kmsmem->bo->pitch = arg.pitch;
+  } else {
+    kmsmem->bo->handle = allocator->kmssink->gemhandle;
+    kmsmem->bo->size = allocator->kmssink->gemsize;
+  }
 
+  /* Atmel specific IOCTL to get the physical address of gem object
+   * This is very much required as the decoder API is expecting
+   * physical address of buffer, Otherwise memcpy operation
+   * is performed which affects the overall system performance
+   */
+  if (allocator->kmssink->zero_copy) {
+    memset (&mreq, 0, sizeof (mreq));
+    mreq.handle = kmsmem->bo->handle;
+    ret = drmIoctl (allocator->priv->fd, DRM_IOCTL_ATMEL_GEM_GET, &mreq);
+    if (ret) {
+      GST_ERROR_OBJECT (allocator, "DRM buffer get physical address failed:"
+          " %s %d", strerror (-ret), ret);
+    }
+
+    physaddress = (guint32) mreq.offset;
+    gst_g1_gem_set_physical ((unsigned int) physaddress);
+    GST_DEBUG_OBJECT (allocator, "Physaddress for PP = 0x%08x \n", physaddress);
+  }
   return TRUE;
 
   /* ERRORS */
@@ -269,6 +305,7 @@ gst_kms_memory_map (GstMemory * mem, gsize maxsize, GstMapFlags flags)
   int err;
   gpointer out;
   struct drm_mode_map_dumb arg = { 0, };
+  size_t size = 0;
 
   alloc = (GstKMSAllocator *) mem->allocator;
 
@@ -279,12 +316,13 @@ gst_kms_memory_map (GstMemory * mem, gsize maxsize, GstMapFlags flags)
   if (!kmsmem->bo)
     return NULL;
 
+  arg.handle = kmsmem->bo->handle;
+  size = kmsmem->bo->size;
+
   /* Reuse existing buffer object mapping if possible */
   if (kmsmem->bo->ptr != NULL) {
     goto out;
   }
-
-  arg.handle = kmsmem->bo->handle;
 
   err = drmIoctl (alloc->priv->fd, DRM_IOCTL_MODE_MAP_DUMB, &arg);
   if (err) {
@@ -293,13 +331,14 @@ gst_kms_memory_map (GstMemory * mem, gsize maxsize, GstMapFlags flags)
     return NULL;
   }
 
-  out = mmap (0, kmsmem->bo->size,
-      PROT_READ | PROT_WRITE, MAP_SHARED, alloc->priv->fd, arg.offset);
+  out = mmap (0, size, PROT_READ | PROT_WRITE, MAP_SHARED,
+      alloc->priv->fd, arg.offset);
   if (out == MAP_FAILED) {
     GST_ERROR_OBJECT (alloc, "Failed to map dumb buffer object: %s %d",
         strerror (errno), errno);
     return NULL;
   }
+
   kmsmem->bo->ptr = out;
 
 out:
@@ -344,10 +383,14 @@ gst_kms_allocator_init (GstKMSAllocator * allocator)
 }
 
 GstAllocator *
-gst_kms_allocator_new (int fd)
+gst_kms_allocator_new (GstG1KMSSink * self)
 {
-  return g_object_new (GST_TYPE_KMS_ALLOCATOR, "name",
-      "KMSMemory::allocator", "drm-fd", fd, NULL);
+  GstKMSAllocator *alloc = g_object_new (GST_TYPE_KMS_ALLOCATOR, "name",
+      "KMSMemory::allocator", "drm-fd", self->fd, NULL);
+
+  alloc->kmssink = self;
+
+  return GST_ALLOCATOR_CAST (alloc);
 }
 
 /* The mem_offsets are relative to the GstMemory start, unlike the vinfo->offset
@@ -361,6 +404,8 @@ gst_kms_allocator_add_fb (GstKMSAllocator * alloc, GstKMSMemory * kmsmem,
   guint32 w, h, fmt, pitch = 0, bo_handles[4] = { 0, };
   guint32 offsets[4] = { 0, };
   guint32 pitches[4] = { 0, };
+  struct drm_mode_map_dumb arg = { 0, };
+  gpointer out;
 
   if (kmsmem->fb_id)
     return TRUE;
@@ -398,13 +443,32 @@ gst_kms_allocator_add_fb (GstKMSAllocator * alloc, GstKMSMemory * kmsmem,
         i, pitches[i], offsets[i]);
   }
 
-  ret = drmModeAddFB2 (alloc->priv->fd, w, h, fmt, bo_handles, pitches,
-      offsets, &kmsmem->fb_id, 0);
+  if (alloc->kmssink->Ismaster) {
+    ret = drmModeAddFB2 (alloc->priv->fd, w, h, fmt, bo_handles, pitches,
+        offsets, &kmsmem->fb_id, 0);
+    if (ret) {
+      GST_ERROR_OBJECT (alloc, "Failed to bind to framebuffer: %s (%d)",
+          strerror (-ret), ret);
+      return FALSE;
+    }
+  }
+  arg.handle = kmsmem->bo->handle;
+
+  ret = drmIoctl (alloc->priv->fd, DRM_IOCTL_MODE_MAP_DUMB, &arg);
   if (ret) {
-    GST_ERROR_OBJECT (alloc, "Failed to bind to framebuffer: %s (%d)",
+    GST_ERROR_OBJECT (alloc, "Failed to get offset of buffer object: %s %d",
         strerror (-ret), ret);
     return FALSE;
   }
+
+  out = mmap (0, kmsmem->bo->size,
+      PROT_READ | PROT_WRITE, MAP_SHARED, alloc->priv->fd, arg.offset);
+  if (out == MAP_FAILED) {
+    GST_ERROR_OBJECT (alloc, "Failed to map dumb buffer object: %s %d",
+        strerror (errno), errno);
+    return FALSE;
+  }
+
   return TRUE;
 }
 
@@ -431,6 +495,11 @@ gst_kms_allocator_bo_alloc (GstAllocator * allocator, GstVideoInfo * vinfo)
   GstKMSAllocator *alloc;
   GstKMSMemory *kmsmem;
   GstMemory *mem;
+  GstG1KMSSink *self;
+  GstVideoRectangle src = { 0, };
+  GstVideoRectangle dst = { 0, };
+  GstVideoRectangle result;
+  gint ret;
 
   mem = gst_kms_allocator_alloc_empty (allocator, vinfo);
   if (!mem)
@@ -438,10 +507,48 @@ gst_kms_allocator_bo_alloc (GstAllocator * allocator, GstVideoInfo * vinfo)
 
   alloc = GST_KMS_ALLOCATOR (allocator);
   kmsmem = (GstKMSMemory *) mem;
+  self = alloc->kmssink;
+
   if (!gst_kms_allocator_memory_create (alloc, kmsmem, vinfo))
     goto fail;
   if (!gst_kms_allocator_add_fb (alloc, kmsmem, vinfo->offset, vinfo))
     goto fail;
+
+  if (self->Ismaster) {
+    src.w = GST_VIDEO_SINK_WIDTH (self);
+    src.h = GST_VIDEO_SINK_HEIGHT (self);
+
+    dst.w = self->hdisplay;
+    dst.h = self->vdisplay;
+
+  retry_set_plane:
+    gst_video_sink_center_rect (src, dst, &result, self->can_scale);
+
+    src.w = GST_VIDEO_INFO_WIDTH (&self->vinfo);
+    src.h = GST_VIDEO_INFO_HEIGHT (&self->vinfo);
+
+    GST_TRACE_OBJECT (alloc,
+        "drmModeSetPlane at (%i,%i) %ix%i sourcing at (%i,%i) %ix%i",
+        result.x, result.y, result.w, result.h, src.x, src.y, src.w, src.h);
+
+    /* source/cropping coordinates are given in Q16 */
+    ret = drmModeSetPlane (self->fd, self->plane_id, self->crtc_id,
+        kmsmem->fb_id, 0, result.x, result.y, result.w, result.h,
+        src.x << 16, src.y << 16, src.w << 16, src.h << 16);
+    if (ret) {
+      if (self->can_scale) {
+        self->can_scale = FALSE;
+        goto retry_set_plane;
+      }
+      GST_DEBUG_OBJECT (alloc, "result = { %d, %d, %d, %d} / "
+          "src = { %d, %d, %d %d } / dst = { %d, %d, %d %d }", result.x,
+          result.y, result.w, result.h, src.x, src.y, src.w, src.h, dst.x,
+          dst.y, dst.w, dst.h);
+      GST_ELEMENT_ERROR (alloc, RESOURCE, FAILED, (NULL),
+          ("drmModeSetPlane failed: %s (%d)", strerror (-ret), ret));
+      goto fail;
+    }
+  }
 
   return mem;
 

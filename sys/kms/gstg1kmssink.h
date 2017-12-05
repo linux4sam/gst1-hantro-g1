@@ -85,6 +85,11 @@ struct _GstG1KMSSink
 
   GstPoll *poll;
   GstPollFD pollfd;
+
+  gint32 gemname;
+  guint32 gemsize, gemhandle;
+  gboolean Ismaster;
+  gboolean zero_copy;
 };
 
 struct _GstG1KMSSinkClass

@@ -15,6 +15,8 @@ libgstg1kms_la_CFLAGS = 			\
 	$(GST_CFLAGS) 				\
 	$(KMS_DRM_CFLAGS) 			\
 	$(LIBDRM_CFLAGS)			\
+       -I$(top_builddir)/gst-libs/ext/g1/memalloc \
+       -I$(top_builddir)/gst-libs/ext/g1/bus \
 	$(NULL)
 
 libgstg1kms_la_LIBADD = 			\
@@ -24,6 +26,9 @@ libgstg1kms_la_LIBADD = 			\
 	$(GST_ALLOCATORS_LIBS)			\
 	$(GST_LIBS) 				\
 	$(KMS_DRM_LIBS) -ldrm -lkms		\
+	-lgstvideo-$(GST_API_VERSION) -lrt	\
+	-lgstallocators-$(GST_API_VERSION)	\
+	$(top_builddir)/gst-libs/ext/g1/bus/libgstbusallocator-@GST_API_VERSION@.la \
 	$(NULL)
 
 libgstg1kms_la_LDFLAGS = 			\

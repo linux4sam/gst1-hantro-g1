@@ -86,6 +86,8 @@ enum
   PROP_CONNECTOR_ID,
   PROP_PLANE_ID,
   PROP_FORCE_MODESETTING,
+  PROP_GEM_NAME,
+  PROP_ZERO_COPY,
   PROP_N
 };
 
@@ -506,6 +508,7 @@ gst_g1kms_sink_start (GstBaseSink * bsink)
   drmModePlane *plane;
   gboolean universal_planes;
   gboolean ret;
+  struct drm_gem_open gemobj;
 
   self = GST_G1KMS_SINK (bsink);
   universal_planes = FALSE;
@@ -527,65 +530,82 @@ gst_g1kms_sink_start (GstBaseSink * bsink)
   if (!get_drm_caps (self))
     goto bail;
 
-  self->can_scale = TRUE;
+  self->can_scale = FALSE;
 
-  res = drmModeGetResources (self->fd);
-  if (!res)
-    goto resources_failed;
+  GST_INFO_OBJECT (self, "GEM Name: %d\n", self->gemname);
+  if (self->gemname > 0) {
 
-  if (self->conn_id == -1)
-    conn = find_main_monitor (self->fd, res);
-  else
-    conn = drmModeGetConnector (self->fd, self->conn_id);
-  if (!conn)
-    goto connector_failed;
+    memset (&gemobj, 0, sizeof (gemobj));
+    gemobj.name = self->gemname;
+    ret = drmIoctl (self->fd, DRM_IOCTL_GEM_OPEN, &gemobj);
+    if (ret < 0) {
+      GST_ERROR_OBJECT (self, "could not flink %d", ret);
+      goto bail;
+    }
+    self->gemhandle = gemobj.handle;
+    self->gemsize = gemobj.size;
+    GST_INFO_OBJECT (self, "GEM handle: %d\n", gemobj.handle);
+    GST_INFO_OBJECT (self, "GEM Size: %lld\n", gemobj.size);
+    self->Ismaster = FALSE;
+  } else {
 
-  crtc = find_crtc_for_connector (self->fd, res, conn, &self->pipe);
-  if (!crtc)
-    goto crtc_failed;
+    res = drmModeGetResources (self->fd);
+    if (!res)
+      goto resources_failed;
 
-  if (!crtc->mode_valid || self->modesetting_enabled) {
-    GST_DEBUG_OBJECT (self, "enabling modesetting");
-    self->modesetting_enabled = TRUE;
-    universal_planes = TRUE;
+    if (self->conn_id == -1)
+      conn = find_main_monitor (self->fd, res);
+    else
+      conn = drmModeGetConnector (self->fd, self->conn_id);
+    if (!conn)
+      goto connector_failed;
+
+    crtc = find_crtc_for_connector (self->fd, res, conn, &self->pipe);
+    if (!crtc)
+      goto crtc_failed;
+
+    if (!crtc->mode_valid || self->modesetting_enabled) {
+      GST_DEBUG_OBJECT (self, "enabling modesetting");
+      self->modesetting_enabled = TRUE;
+      universal_planes = TRUE;
+    }
+
+  retry_find_plane:
+    if (universal_planes &&
+        drmSetClientCap (self->fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1))
+      goto set_cap_failed;
+
+    pres = drmModeGetPlaneResources (self->fd);
+    if (!pres)
+      goto plane_resources_failed;
+
+    if (self->plane_id == -1)
+      plane = find_plane_for_crtc (self->fd, res, pres, crtc->crtc_id);
+    else
+      plane = drmModeGetPlane (self->fd, self->plane_id);
+    if (!plane)
+      goto plane_failed;
+
+    if (!ensure_allowed_caps (self, conn, plane, res))
+      goto allowed_caps_failed;
+
+    self->conn_id = conn->connector_id;
+    self->crtc_id = crtc->crtc_id;
+    self->plane_id = plane->plane_id;
+
+    GST_INFO_OBJECT (self, "connector id = %d / crtc id = %d / plane id = %d",
+        self->conn_id, self->crtc_id, self->plane_id);
+
+    self->hdisplay = crtc->mode.hdisplay;
+    self->vdisplay = crtc->mode.vdisplay;
+    self->buffer_id = crtc->buffer_id;
+
+    self->mm_width = conn->mmWidth;
+    self->mm_height = conn->mmHeight;
+
+    GST_INFO_OBJECT (self, "display size: pixels = %dx%d / millimeters = %dx%d",
+        self->hdisplay, self->vdisplay, self->mm_width, self->mm_height);
   }
-
-retry_find_plane:
-  if (universal_planes &&
-      drmSetClientCap (self->fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1))
-    goto set_cap_failed;
-
-  pres = drmModeGetPlaneResources (self->fd);
-  if (!pres)
-    goto plane_resources_failed;
-
-  if (self->plane_id == -1)
-    plane = find_plane_for_crtc (self->fd, res, pres, crtc->crtc_id);
-  else
-    plane = drmModeGetPlane (self->fd, self->plane_id);
-  if (!plane)
-    goto plane_failed;
-
-  if (!ensure_allowed_caps (self, conn, plane, res))
-    goto allowed_caps_failed;
-
-  self->conn_id = conn->connector_id;
-  self->crtc_id = crtc->crtc_id;
-  self->plane_id = plane->plane_id;
-
-  GST_INFO_OBJECT (self, "connector id = %d / crtc id = %d / plane id = %d",
-      self->conn_id, self->crtc_id, self->plane_id);
-
-  self->hdisplay = crtc->mode.hdisplay;
-  self->vdisplay = crtc->mode.vdisplay;
-  self->buffer_id = crtc->buffer_id;
-
-  self->mm_width = conn->mmWidth;
-  self->mm_height = conn->mmHeight;
-
-  GST_INFO_OBJECT (self, "display size: pixels = %dx%d / millimeters = %dx%d",
-      self->hdisplay, self->vdisplay, self->mm_width, self->mm_height);
-
   self->pollfd.fd = self->fd;
   gst_poll_add_fd (self->poll, &self->pollfd);
   gst_poll_fd_ctl_read (self->poll, &self->pollfd, TRUE);
@@ -734,7 +754,7 @@ ensure_g1kms_allocator (GstG1KMSSink * self)
 {
   if (self->allocator)
     return;
-  self->allocator = gst_kms_allocator_new (self->fd);
+  self->allocator = gst_kms_allocator_new (self);
 }
 
 static GstBufferPool *
@@ -932,7 +952,7 @@ gst_g1kms_sink_propose_allocation (GstBaseSink * bsink, GstQuery * query)
 
   if (pool) {
     /* we need at least 2 buffer because we hold on to the last one */
-    gst_query_add_allocation_pool (query, pool, size, 2, 0);
+    gst_query_add_allocation_pool (query, pool, size, 0, 0);
     gst_object_unref (pool);
   }
 
@@ -1154,6 +1174,8 @@ gst_g1kms_sink_get_input_buffer (GstG1KMSSink * self, GstBuffer * inbuf)
   GstVideoFrame inframe, outframe;
   gboolean success;
 
+  GST_TRACE_OBJECT (self, "In %s : doing frame copy \n", __func__);
+
   mem = gst_buffer_peek_memory (inbuf, 0);
   if (!mem)
     return NULL;
@@ -1228,7 +1250,6 @@ error_map_src_buffer:
 static GstFlowReturn
 gst_g1kms_sink_show_frame (GstVideoSink * vsink, GstBuffer * buf)
 {
-  gint ret;
   GstBuffer *buffer;
   guint32 fb_id;
   GstG1KMSSink *self;
@@ -1236,15 +1257,27 @@ gst_g1kms_sink_show_frame (GstVideoSink * vsink, GstBuffer * buf)
   GstVideoRectangle src = { 0, };
   GstVideoRectangle dst = { 0, };
   GstVideoRectangle result;
+  gint ret;
+
   GstFlowReturn res;
 
   self = GST_G1KMS_SINK (vsink);
 
   res = GST_FLOW_ERROR;
 
+  if (!self->Ismaster || self->zero_copy) {
+    GST_TRACE_OBJECT (self, "In %s : client Mode\n", __func__);
+    if (!gst_g1kms_sink_sync (self))
+      return res;
+
+    res = GST_FLOW_OK;
+    return res;
+  }
+
   buffer = gst_g1kms_sink_get_input_buffer (self, buf);
   if (!buffer)
     return GST_FLOW_ERROR;
+
   fb_id = gst_kms_memory_get_fb_id (gst_buffer_peek_memory (buffer, 0));
   if (fb_id == 0)
     goto buffer_invalid;
@@ -1256,12 +1289,16 @@ gst_g1kms_sink_show_frame (GstVideoSink * vsink, GstBuffer * buf)
     goto sync_frame;
   }
 
+  /* With zero mem copy enabled, observed a black screen in between
+   * each video frame and to avoid this problem, drmModeSetPlane
+   * is done during allocation and disabling it here
+   */
   if ((crop = gst_buffer_get_video_crop_meta (buffer))) {
     GstVideoInfo vinfo = self->vinfo;
     vinfo.width = crop->width;
     vinfo.height = crop->height;
 
-    if (!gst_kms_sink_calculate_display_ratio (self, &vinfo))
+    if (!gst_g1kms_sink_calculate_display_ratio (self, &vinfo))
       goto no_disp_ratio;
 
     src.x = crop->x;
@@ -1360,6 +1397,12 @@ gst_g1kms_sink_set_property (GObject * object, guint prop_id,
     case PROP_FORCE_MODESETTING:
       sink->modesetting_enabled = g_value_get_boolean (value);
       break;
+    case PROP_GEM_NAME:
+      sink->gemname = g_value_get_int (value);
+      break;
+    case PROP_ZERO_COPY:
+      sink->zero_copy = g_value_get_boolean (value);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -1387,6 +1430,12 @@ gst_g1kms_sink_get_property (GObject * object, guint prop_id,
     case PROP_FORCE_MODESETTING:
       g_value_set_boolean (value, sink->modesetting_enabled);
       break;
+    case PROP_GEM_NAME:
+      g_value_set_int (value, sink->gemname);
+      break;
+    case PROP_ZERO_COPY:
+      g_value_set_boolean (value, sink->zero_copy);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -1411,6 +1460,9 @@ gst_g1kms_sink_init (GstG1KMSSink * sink)
   sink->fd = -1;
   sink->conn_id = -1;
   sink->plane_id = -1;
+  sink->gemhandle = 0;
+  sink->gemsize = 0;
+  sink->Ismaster = TRUE;
   gst_poll_fd_init (&sink->pollfd);
   sink->poll = gst_poll_new (TRUE);
   gst_video_info_init (&sink->vinfo);
@@ -1495,6 +1547,15 @@ gst_g1kms_sink_class_init (GstG1KMSSinkClass * klass)
   g_properties[PROP_FORCE_MODESETTING] =
       g_param_spec_boolean ("force-modesetting", "Force modesetting",
       "When enabled, the sink try to configure the display mode", FALSE,
+      G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | G_PARAM_CONSTRUCT);
+
+  g_properties[PROP_GEM_NAME] = g_param_spec_int ("gem-name", "gem-name",
+      "when gem name is set, kmssink will function as drm client"
+      "and communicate with drm master using gem name", -1, G_MAXINT32, -1,
+      G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | G_PARAM_CONSTRUCT);
+
+  g_properties[PROP_ZERO_COPY] = g_param_spec_boolean ("zero-copy", "Zero copy",
+      "When Enabled, vdec will copy frames directly to display memory", TRUE,
       G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | G_PARAM_CONSTRUCT);
 
   g_object_class_install_properties (gobject_class, PROP_N, g_properties);

@@ -1,10 +1,12 @@
 /*
  * GStreamer
  * Copyright (C) 2016 Igalia
+ * Copyright (C) Microchip Technology Inc.
  *
  * Authors:
  *  Víctor Manuel Jáquez Leal <vjaquez@igalia.com>
  *  Javier Martin <javiermartin@by.com.es>
+ *  Sandeep Sheriker M <sandeepsheriker.mallikarjun@microchip.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
