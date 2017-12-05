@@ -1,10 +1,13 @@
 /* GStreamer
  *
  * Copyright (C) 2016 Igalia
+ * Copyright (C) Microchip Technology Inc.
  *
  * Authors:
  *  Víctor Manuel Jáquez Leal <vjaquez@igalia.com>
  *  Javier Martin <javiermartin@by.com.es>
+ *  Sandeep Sheriker M
+ *	<sandeepsheriker.mallikarjun@microchip.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -23,17 +26,23 @@
  *
  */
 
+/*
+ * g1kmsink is customized for Microchip(Atmel AT91) SAMA5D4 to
+ * implement as a DRM client using GEM handle and render video
+ * frames directly on planes of a DRM/KMS device using zerocopy.
+ */
+
 /**
- * SECTION:element-kmssink
- * @title: kmssink
+ * SECTION:element-g1kmssink
+ * @title: g1kmssink
  * @short_description: A KMS/DRM based video sink
  *
- * kmssink is a simple video sink that renders video frames directly
+ * g1kmssink is a simple video sink that renders video frames directly
  * in a plane of a DRM device.
  *
  * ## Example launch line
  * |[
- * gst-launch-1.0 videotestsrc ! kmssink
+ * gst-launch-1.0 videotestsrc ! g1kmssink
  * ]|
  *
  */
@@ -52,20 +61,21 @@
 
 #include <string.h>
 
-#include "gstkmssink.h"
+#include "gstg1kmssink.h"
 #include "gstkmsutils.h"
 #include "gstkmsbufferpool.h"
 #include "gstkmsallocator.h"
 
-#define GST_PLUGIN_NAME "kmssink"
-#define GST_PLUGIN_DESC "Video sink using the Linux kernel mode setting API"
+#define GST_PLUGIN_NAME "g1kmssink"
+#define GST_PLUGIN_DESC "Video sink using the Linux kernel mode setting API \
+and customsied for sama5d4 Microchip(Atmel AT91)"
 
-GST_DEBUG_CATEGORY_STATIC (gst_kms_sink_debug);
+GST_DEBUG_CATEGORY_STATIC (gst_g1kms_sink_debug);
 GST_DEBUG_CATEGORY_STATIC (CAT_PERFORMANCE);
-#define GST_CAT_DEFAULT gst_kms_sink_debug
+#define GST_CAT_DEFAULT gst_g1kms_sink_debug
 
-#define parent_class gst_kms_sink_parent_class
-G_DEFINE_TYPE_WITH_CODE (GstKMSSink, gst_kms_sink, GST_TYPE_VIDEO_SINK,
+#define parent_class gst_g1kms_sink_parent_class
+G_DEFINE_TYPE_WITH_CODE (GstG1KMSSink, gst_g1kms_sink, GST_TYPE_VIDEO_SINK,
     GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, GST_PLUGIN_NAME, 0,
         GST_PLUGIN_DESC);
     GST_DEBUG_CATEGORY_GET (CAT_PERFORMANCE, "GST_PERFORMANCE"));
@@ -263,7 +273,7 @@ find_main_monitor (int fd, drmModeRes * res)
 }
 
 static void
-log_drm_version (GstKMSSink * self)
+log_drm_version (GstG1KMSSink * self)
 {
 #ifndef GST_DISABLE_GST_DEBUG
   drmVersion *v;
@@ -283,7 +293,7 @@ log_drm_version (GstKMSSink * self)
 }
 
 static gboolean
-get_drm_caps (GstKMSSink * self)
+get_drm_caps (GstG1KMSSink * self)
 {
   gint ret;
   guint64 has_dumb_buffer;
@@ -321,7 +331,7 @@ get_drm_caps (GstKMSSink * self)
 }
 
 static gboolean
-configure_mode_setting (GstKMSSink * self, GstVideoInfo * vinfo)
+configure_mode_setting (GstG1KMSSink * self, GstVideoInfo * vinfo)
 {
   gboolean ret;
   drmModeConnector *conn;
@@ -414,7 +424,7 @@ modesetting_failed:
 }
 
 static gboolean
-ensure_allowed_caps (GstKMSSink * self, drmModeConnector * conn,
+ensure_allowed_caps (GstG1KMSSink * self, drmModeConnector * conn,
     drmModePlane * plane, drmModeRes * res)
 {
   GstCaps *out_caps, *tmp_caps, *caps;
@@ -486,9 +496,9 @@ ensure_allowed_caps (GstKMSSink * self, drmModeConnector * conn,
 }
 
 static gboolean
-gst_kms_sink_start (GstBaseSink * bsink)
+gst_g1kms_sink_start (GstBaseSink * bsink)
 {
-  GstKMSSink *self;
+  GstG1KMSSink *self;
   drmModeRes *res;
   drmModeConnector *conn;
   drmModeCrtc *crtc;
@@ -497,7 +507,7 @@ gst_kms_sink_start (GstBaseSink * bsink)
   gboolean universal_planes;
   gboolean ret;
 
-  self = GST_KMS_SINK (bsink);
+  self = GST_G1KMS_SINK (bsink);
   universal_planes = FALSE;
   ret = FALSE;
   res = NULL;
@@ -669,11 +679,11 @@ allowed_caps_failed:
 }
 
 static gboolean
-gst_kms_sink_stop (GstBaseSink * bsink)
+gst_g1kms_sink_stop (GstBaseSink * bsink)
 {
-  GstKMSSink *self;
+  GstG1KMSSink *self;
 
-  self = GST_KMS_SINK (bsink);
+  self = GST_G1KMS_SINK (bsink);
 
   gst_buffer_replace (&self->last_buffer, NULL);
   gst_caps_replace (&self->allowed_caps, NULL);
@@ -693,7 +703,7 @@ gst_kms_sink_stop (GstBaseSink * bsink)
 }
 
 static GstCaps *
-gst_kms_sink_get_allowed_caps (GstKMSSink * self)
+gst_g1kms_sink_get_allowed_caps (GstG1KMSSink * self)
 {
   if (!self->allowed_caps)
     return NULL;                /* base class will return the template caps */
@@ -701,14 +711,14 @@ gst_kms_sink_get_allowed_caps (GstKMSSink * self)
 }
 
 static GstCaps *
-gst_kms_sink_get_caps (GstBaseSink * bsink, GstCaps * filter)
+gst_g1kms_sink_get_caps (GstBaseSink * bsink, GstCaps * filter)
 {
-  GstKMSSink *self;
+  GstG1KMSSink *self;
   GstCaps *caps, *out_caps;
 
-  self = GST_KMS_SINK (bsink);
+  self = GST_G1KMS_SINK (bsink);
 
-  caps = gst_kms_sink_get_allowed_caps (self);
+  caps = gst_g1kms_sink_get_allowed_caps (self);
   if (caps && filter) {
     out_caps = gst_caps_intersect_full (caps, filter, GST_CAPS_INTERSECT_FIRST);
     gst_caps_unref (caps);
@@ -720,7 +730,7 @@ gst_kms_sink_get_caps (GstBaseSink * bsink, GstCaps * filter)
 }
 
 static void
-ensure_kms_allocator (GstKMSSink * self)
+ensure_g1kms_allocator (GstG1KMSSink * self)
 {
   if (self->allocator)
     return;
@@ -728,7 +738,7 @@ ensure_kms_allocator (GstKMSSink * self)
 }
 
 static GstBufferPool *
-gst_kms_sink_create_pool (GstKMSSink * self, GstCaps * caps, gsize size,
+gst_g1kms_sink_create_pool (GstG1KMSSink * self, GstCaps * caps, gsize size,
     gint min)
 {
   GstBufferPool *pool;
@@ -742,7 +752,7 @@ gst_kms_sink_create_pool (GstKMSSink * self, GstCaps * caps, gsize size,
   gst_buffer_pool_config_set_params (config, caps, size, min, 0);
   gst_buffer_pool_config_add_option (config, GST_BUFFER_POOL_OPTION_VIDEO_META);
 
-  ensure_kms_allocator (self);
+  ensure_g1kms_allocator (self);
   gst_buffer_pool_config_set_allocator (config, self->allocator, NULL);
 
   if (!gst_buffer_pool_set_config (pool, config))
@@ -765,7 +775,8 @@ config_failed:
 }
 
 static gboolean
-gst_kms_sink_calculate_display_ratio (GstKMSSink * self, GstVideoInfo * vinfo)
+gst_g1kms_sink_calculate_display_ratio (GstG1KMSSink * self,
+    GstVideoInfo * vinfo)
 {
   guint dar_n, dar_d;
   guint video_width, video_height;
@@ -816,26 +827,26 @@ gst_kms_sink_calculate_display_ratio (GstKMSSink * self, GstVideoInfo * vinfo)
 }
 
 static gboolean
-gst_kms_sink_set_caps (GstBaseSink * bsink, GstCaps * caps)
+gst_g1kms_sink_set_caps (GstBaseSink * bsink, GstCaps * caps)
 {
-  GstKMSSink *self;
+  GstG1KMSSink *self;
   GstVideoInfo vinfo;
   GstBufferPool *newpool, *oldpool;
 
-  self = GST_KMS_SINK (bsink);
+  self = GST_G1KMS_SINK (bsink);
 
   if (!gst_video_info_from_caps (&vinfo, caps))
     goto invalid_format;
 
-  if (!gst_kms_sink_calculate_display_ratio (self, &vinfo))
+  if (!gst_g1kms_sink_calculate_display_ratio (self, &vinfo))
     goto no_disp_ratio;
 
   if (GST_VIDEO_SINK_WIDTH (self) <= 0 || GST_VIDEO_SINK_HEIGHT (self) <= 0)
     goto invalid_size;
 
   /* create a new pool for the new configuration */
-  newpool = gst_kms_sink_create_pool (self, caps, GST_VIDEO_INFO_SIZE (&vinfo),
-      2);
+  newpool =
+      gst_g1kms_sink_create_pool (self, caps, GST_VIDEO_INFO_SIZE (&vinfo), 0);
   if (!newpool)
     goto no_pool;
 
@@ -893,16 +904,16 @@ modesetting_failed:
 }
 
 static gboolean
-gst_kms_sink_propose_allocation (GstBaseSink * bsink, GstQuery * query)
+gst_g1kms_sink_propose_allocation (GstBaseSink * bsink, GstQuery * query)
 {
-  GstKMSSink *self;
+  GstG1KMSSink *self;
   GstCaps *caps;
   gboolean need_pool;
   GstVideoInfo vinfo;
   GstBufferPool *pool;
   gsize size;
 
-  self = GST_KMS_SINK (bsink);
+  self = GST_G1KMS_SINK (bsink);
 
   gst_query_parse_allocation (query, &caps, &need_pool);
   if (!caps)
@@ -914,7 +925,7 @@ gst_kms_sink_propose_allocation (GstBaseSink * bsink, GstQuery * query)
 
   pool = NULL;
   if (need_pool) {
-    pool = gst_kms_sink_create_pool (self, caps, size, 0);
+    pool = gst_g1kms_sink_create_pool (self, caps, size, 0);
     if (!pool)
       goto no_pool;
   }
@@ -958,7 +969,7 @@ sync_handler (gint fd, guint frame, guint sec, guint usec, gpointer data)
 }
 
 static gboolean
-gst_kms_sink_sync (GstKMSSink * self)
+gst_g1kms_sink_sync (GstG1KMSSink * self)
 {
   gint ret;
   gboolean waiting;
@@ -1041,7 +1052,7 @@ set_cached_kmsmem (GstMemory * mem, GstMemory * kmsmem)
 }
 
 static gboolean
-gst_kms_sink_import_dmabuf (GstKMSSink * self, GstBuffer * inbuf,
+gst_g1kms_sink_import_dmabuf (GstG1KMSSink * self, GstBuffer * inbuf,
     GstBuffer ** outbuf)
 {
   gint prime_fds[GST_VIDEO_MAX_PLANES] = { 0, };
@@ -1135,7 +1146,7 @@ wrap_mem:
 }
 
 static GstBuffer *
-gst_kms_sink_get_input_buffer (GstKMSSink * self, GstBuffer * inbuf)
+gst_g1kms_sink_get_input_buffer (GstG1KMSSink * self, GstBuffer * inbuf)
 {
   GstMemory *mem;
   GstBuffer *buf;
@@ -1151,7 +1162,7 @@ gst_kms_sink_get_input_buffer (GstKMSSink * self, GstBuffer * inbuf)
     return gst_buffer_ref (inbuf);
 
   buf = NULL;
-  if (gst_kms_sink_import_dmabuf (self, inbuf, &buf))
+  if (gst_g1kms_sink_import_dmabuf (self, inbuf, &buf))
     return buf;
 
   GST_CAT_INFO_OBJECT (CAT_PERFORMANCE, self, "frame copy");
@@ -1215,23 +1226,23 @@ error_map_src_buffer:
 }
 
 static GstFlowReturn
-gst_kms_sink_show_frame (GstVideoSink * vsink, GstBuffer * buf)
+gst_g1kms_sink_show_frame (GstVideoSink * vsink, GstBuffer * buf)
 {
   gint ret;
   GstBuffer *buffer;
   guint32 fb_id;
-  GstKMSSink *self;
+  GstG1KMSSink *self;
   GstVideoCropMeta *crop;
   GstVideoRectangle src = { 0, };
   GstVideoRectangle dst = { 0, };
   GstVideoRectangle result;
   GstFlowReturn res;
 
-  self = GST_KMS_SINK (vsink);
+  self = GST_G1KMS_SINK (vsink);
 
   res = GST_FLOW_ERROR;
 
-  buffer = gst_kms_sink_get_input_buffer (self, buf);
+  buffer = gst_g1kms_sink_get_input_buffer (self, buf);
   if (!buffer)
     return GST_FLOW_ERROR;
   fb_id = gst_kms_memory_get_fb_id (gst_buffer_peek_memory (buffer, 0));
@@ -1292,7 +1303,7 @@ retry_set_plane:
 
 sync_frame:
   /* Wait for the previous frame to complete redraw */
-  if (!gst_kms_sink_sync (self))
+  if (!gst_g1kms_sink_sync (self))
     goto bail;
 
   gst_buffer_replace (&self->last_buffer, buffer);
@@ -1329,12 +1340,12 @@ no_disp_ratio:
 }
 
 static void
-gst_kms_sink_set_property (GObject * object, guint prop_id,
+gst_g1kms_sink_set_property (GObject * object, guint prop_id,
     const GValue * value, GParamSpec * pspec)
 {
-  GstKMSSink *sink;
+  GstG1KMSSink *sink;
 
-  sink = GST_KMS_SINK (object);
+  sink = GST_G1KMS_SINK (object);
 
   switch (prop_id) {
     case PROP_DRIVER_NAME:
@@ -1356,12 +1367,12 @@ gst_kms_sink_set_property (GObject * object, guint prop_id,
 }
 
 static void
-gst_kms_sink_get_property (GObject * object, guint prop_id,
+gst_g1kms_sink_get_property (GObject * object, guint prop_id,
     GValue * value, GParamSpec * pspec)
 {
-  GstKMSSink *sink;
+  GstG1KMSSink *sink;
 
-  sink = GST_KMS_SINK (object);
+  sink = GST_G1KMS_SINK (object);
 
   switch (prop_id) {
     case PROP_DRIVER_NAME:
@@ -1383,11 +1394,11 @@ gst_kms_sink_get_property (GObject * object, guint prop_id,
 }
 
 static void
-gst_kms_sink_finalize (GObject * object)
+gst_g1kms_sink_finalize (GObject * object)
 {
-  GstKMSSink *sink;
+  GstG1KMSSink *sink;
 
-  sink = GST_KMS_SINK (object);
+  sink = GST_G1KMS_SINK (object);
   g_clear_pointer (&sink->devname, g_free);
   gst_poll_free (sink->poll);
 
@@ -1395,7 +1406,7 @@ gst_kms_sink_finalize (GObject * object)
 }
 
 static void
-gst_kms_sink_init (GstKMSSink * sink)
+gst_g1kms_sink_init (GstG1KMSSink * sink)
 {
   sink->fd = -1;
   sink->conn_id = -1;
@@ -1406,7 +1417,7 @@ gst_kms_sink_init (GstKMSSink * sink)
 }
 
 static void
-gst_kms_sink_class_init (GstKMSSinkClass * klass)
+gst_g1kms_sink_class_init (GstG1KMSSinkClass * klass)
 {
   GObjectClass *gobject_class;
   GstElementClass *element_class;
@@ -1419,25 +1430,27 @@ gst_kms_sink_class_init (GstKMSSinkClass * klass)
   basesink_class = GST_BASE_SINK_CLASS (klass);
   videosink_class = GST_VIDEO_SINK_CLASS (klass);
 
-  gst_element_class_set_static_metadata (element_class, "KMS video sink",
-      "Sink/Video", GST_PLUGIN_DESC, "Víctor Jáquez <vjaquez@igalia.com>");
+  gst_element_class_set_static_metadata (element_class,
+      "G1KMS video sink", "Sink/Video", GST_PLUGIN_DESC,
+      "Víctor Jáquez <vjaquez@igalia.com>"
+      "Sandeep Sheriker M " "<sandeepsheriker.mallikarjun@microchip.com>");
 
   caps = gst_kms_sink_caps_template_fill ();
   gst_element_class_add_pad_template (element_class,
       gst_pad_template_new ("sink", GST_PAD_SINK, GST_PAD_ALWAYS, caps));
   gst_caps_unref (caps);
 
-  basesink_class->start = GST_DEBUG_FUNCPTR (gst_kms_sink_start);
-  basesink_class->stop = GST_DEBUG_FUNCPTR (gst_kms_sink_stop);
-  basesink_class->set_caps = GST_DEBUG_FUNCPTR (gst_kms_sink_set_caps);
-  basesink_class->get_caps = GST_DEBUG_FUNCPTR (gst_kms_sink_get_caps);
-  basesink_class->propose_allocation = gst_kms_sink_propose_allocation;
+  basesink_class->start = GST_DEBUG_FUNCPTR (gst_g1kms_sink_start);
+  basesink_class->stop = GST_DEBUG_FUNCPTR (gst_g1kms_sink_stop);
+  basesink_class->set_caps = GST_DEBUG_FUNCPTR (gst_g1kms_sink_set_caps);
+  basesink_class->get_caps = GST_DEBUG_FUNCPTR (gst_g1kms_sink_get_caps);
+  basesink_class->propose_allocation = gst_g1kms_sink_propose_allocation;
 
-  videosink_class->show_frame = gst_kms_sink_show_frame;
+  videosink_class->show_frame = gst_g1kms_sink_show_frame;
 
-  gobject_class->finalize = gst_kms_sink_finalize;
-  gobject_class->set_property = gst_kms_sink_set_property;
-  gobject_class->get_property = gst_kms_sink_get_property;
+  gobject_class->finalize = gst_g1kms_sink_finalize;
+  gobject_class->set_property = gst_g1kms_sink_set_property;
+  gobject_class->get_property = gst_g1kms_sink_get_property;
 
   /**
    * kmssink:driver-name:
@@ -1491,12 +1504,12 @@ static gboolean
 plugin_init (GstPlugin * plugin)
 {
   if (!gst_element_register (plugin, GST_PLUGIN_NAME, GST_RANK_SECONDARY,
-          GST_TYPE_KMS_SINK))
+          GST_TYPE_G1KMS_SINK))
     return FALSE;
 
   return TRUE;
 }
 
-GST_PLUGIN_DEFINE (GST_VERSION_MAJOR, GST_VERSION_MINOR, kms,
+GST_PLUGIN_DEFINE (GST_VERSION_MAJOR, GST_VERSION_MINOR, g1kmssink,
     GST_PLUGIN_DESC, plugin_init, VERSION, GST_LICENSE, GST_PACKAGE_NAME,
     GST_PACKAGE_ORIGIN)

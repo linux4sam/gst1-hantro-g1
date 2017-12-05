@@ -1,10 +1,12 @@
 /* GStreamer
  *
  * Copyright (C) 2016 Igalia
+ * Copyright (C) Microchip Technology Inc.
  *
  * Authors:
  *  Víctor Manuel Jáquez Leal <vjaquez@igalia.com>
  *  Javier Martin <javiermartin@by.com.es>
+ *  Sandeep Sheriker M <sandeepsheriker.mallikarjun@microchip.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -23,31 +25,36 @@
  *
  */
 
-#ifndef __GST_KMS_SINK_H__
-#define __GST_KMS_SINK_H__
+/**
+ * g1kmsink is modified for Microchip(Atmel AT91) SAMA5D4 to implement
+ * zerocopy and render video frames directly on drm/kms plane.
+ * device.
+ */
+
+#ifndef __GST_G1KMS_SINK_H__
+#define __GST_G1KMS_SINK_H__
 
 #include <gst/video/gstvideosink.h>
 
 G_BEGIN_DECLS
+#define GST_TYPE_G1KMS_SINK \
+  (gst_g1kms_sink_get_type())
+#define GST_G1KMS_SINK(obj) \
+  (G_TYPE_CHECK_INSTANCE_CAST((obj), GST_TYPE_G1KMS_SINK, GstG1KMSSink))
+#define GST_G1KMS_SINK_CLASS(klass) \
+  (G_TYPE_CHECK_CLASS_CAST((klass), GST_TYPE_G1KMS_SINK, GstG1KMSSinkClass))
+#define GST_IS_G1KMS_SINK(obj) \
+  (G_TYPE_CHECK_INSTANCE_TYPE((obj), GST_TYPE_G1KMS_SINK))
+#define GST_IS_G1KMS_SINK_CLASS(klass) \
+  (G_TYPE_CHECK_CLASS_TYPE((klass), GST_TYPE_G1KMS_SINK))
+typedef struct _GstG1KMSSink GstG1KMSSink;
+typedef struct _GstG1KMSSinkClass GstG1KMSSinkClass;
 
-#define GST_TYPE_KMS_SINK \
-  (gst_kms_sink_get_type())
-#define GST_KMS_SINK(obj) \
-  (G_TYPE_CHECK_INSTANCE_CAST((obj), GST_TYPE_KMS_SINK, GstKMSSink))
-#define GST_KMS_SINK_CLASS(klass) \
-  (G_TYPE_CHECK_CLASS_CAST((klass), GST_TYPE_KMS_SINK, GstKMSSinkClass))
-#define GST_IS_KMS_SINK(obj) \
-  (G_TYPE_CHECK_INSTANCE_TYPE((obj), GST_TYPE_KMS_SINK))
-#define GST_IS_KMS_SINK_CLASS(klass) \
-  (G_TYPE_CHECK_CLASS_TYPE((klass), GST_TYPE_KMS_SINK))
-
-typedef struct _GstKMSSink GstKMSSink;
-typedef struct _GstKMSSinkClass GstKMSSinkClass;
-
-struct _GstKMSSink {
+struct _GstG1KMSSink
+{
   GstVideoSink videosink;
 
-  /*< private >*/
+  /*< private > */
   gint fd;
   gint conn_id;
   gint crtc_id;
@@ -80,12 +87,14 @@ struct _GstKMSSink {
   GstPollFD pollfd;
 };
 
-struct _GstKMSSinkClass {
+struct _GstG1KMSSinkClass
+{
   GstVideoSinkClass parent_class;
 };
 
-GType gst_kms_sink_get_type (void) G_GNUC_CONST;
+GType
+gst_g1kms_sink_get_type (void)
+    G_GNUC_CONST;
 
 G_END_DECLS
-
-#endif /* __GST_KMS_SINK_H__ */
+#endif /* __GST_G1KMS_SINK_H__ */

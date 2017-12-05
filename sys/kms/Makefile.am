@@ -1,13 +1,13 @@
-plugin_LTLIBRARIES = libgstkms.la
+plugin_LTLIBRARIES = libgstg1kms.la
 LIBDRM_CFLAGS = `pkg-config --cflags libdrm --cflags libkms`
-libgstkms_la_SOURCES = 			\
-	gstkmssink.c				\
+libgstg1kms_la_SOURCES = 			\
+	gstg1kmssink.c				\
 	gstkmsutils.c				\
 	gstkmsallocator.c			\
 	gstkmsbufferpool.c			\
 	$(NUL)
 
-libgstkms_la_CFLAGS = 			\
+libgstg1kms_la_CFLAGS = 			\
 	$(GST_PLUGINS_BASE_CFLAGS) 		\
 	$(GST_BASE_CFLAGS) 			\
 	$(GST_VIDEO_CFLAGS)			\
@@ -17,7 +17,7 @@ libgstkms_la_CFLAGS = 			\
 	$(LIBDRM_CFLAGS)			\
 	$(NULL)
 
-libgstkms_la_LIBADD = 			\
+libgstg1kms_la_LIBADD = 			\
 	$(GST_PLUGINS_BASE_LIBS) 		\
 	$(GST_BASE_LIBS) 			\
 	$(GST_VIDEO_LIBS)			\
@@ -26,16 +26,16 @@ libgstkms_la_LIBADD = 			\
 	$(KMS_DRM_LIBS) -ldrm -lkms		\
 	$(NULL)
 
-libgstkms_la_LDFLAGS = 			\
+libgstg1kms_la_LDFLAGS = 			\
 	$(GST_PLUGIN_LDFLAGS)			\
 	$(NULL)
 
-libgstkms_la_LIBTOOLFLAGS = 		\
+libgstg1kms_la_LIBTOOLFLAGS = 		\
 	$(GST_PLUGIN_LIBTOOLFLAGS) 		\
 	$(NULL)
 
 noinst_HEADERS = 				\
-	gstkmssink.h 				\
+	gstg1kmssink.h 				\
 	gstkmsutils.h				\
 	gstkmsallocator.h			\
 	gstkmsbufferpool.h			\
