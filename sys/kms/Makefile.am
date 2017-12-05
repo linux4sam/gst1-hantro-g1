@@ -1,5 +1,5 @@
 plugin_LTLIBRARIES = libgstkms.la
-
+LIBDRM_CFLAGS = `pkg-config --cflags libdrm --cflags libkms`
 libgstkms_la_SOURCES = 			\
 	gstkmssink.c				\
 	gstkmsutils.c				\
@@ -14,6 +14,7 @@ libgstkms_la_CFLAGS = 			\
 	$(GST_ALLOCATORS_CFLAGS)		\
 	$(GST_CFLAGS) 				\
 	$(KMS_DRM_CFLAGS) 			\
+	$(LIBDRM_CFLAGS)			\
 	$(NULL)
 
 libgstkms_la_LIBADD = 			\
@@ -22,7 +23,7 @@ libgstkms_la_LIBADD = 			\
 	$(GST_VIDEO_LIBS)			\
 	$(GST_ALLOCATORS_LIBS)			\
 	$(GST_LIBS) 				\
-	$(KMS_DRM_LIBS) 			\
+	$(KMS_DRM_LIBS) -ldrm -lkms		\
 	$(NULL)
 
 libgstkms_la_LDFLAGS = 			\
