@@ -1,2 +1,3 @@
 SUBDIRS = fbdev	\
-	  drmsink	
+	drmsink \
+	kms

@@ -333,6 +333,7 @@ ext/g1/Makefile
 sys/Makefile
 sys/fbdev/Makefile
 sys/drmsink/Makefile
+sys/kms/Makefile
 gst-libs/Makefile
 gst-libs/ext/Makefile
 gst-libs/ext/g1/Makefile
