@@ -26,6 +26,7 @@
 #include "gstg1h264dec.h"
 #include "gstg1mp4dec.h"
 #include "gstg1vp8dec.h"
+#include "gstg1jpegdec.h"
 #include "gstdwlallocator.h"
 
 /* Register of all the elements of the plugin */
@@ -43,6 +44,9 @@ plugin_init (GstPlugin * plugin)
     return FALSE;
   if (!gst_element_register (plugin, "g1vp8dec", GST_RANK_PRIMARY,
           GST_TYPE_G1_VP8_DEC))
+    return FALSE;
+  if (!gst_element_register (plugin, "g1jpegdec", GST_RANK_PRIMARY,
+          GST_TYPE_G1_JPEG_DEC))
     return FALSE;
 
   return TRUE;

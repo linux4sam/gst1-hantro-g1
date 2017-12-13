@@ -4,7 +4,8 @@ libgstg1_la_SOURCES = 			\
 	gstg1.c 			\
 	gstg1basedec.h gstg1basedec.c	\
 	gstg1h264dec.h gstg1h264dec.c	\
-	gstg1vp8dec.h gstg1vp8dec.c		\
+	gstg1vp8dec.h gstg1vp8dec.c	\
+	gstg1jpegdec.h gstg1jpegdec.c	\
 	gstg1mp4dec.h gstg1mp4dec.c
 
 FIFO_DATATYPE="i32"
@@ -31,4 +32,5 @@ noinst_HEADERS =  	\
 	gstg1basedec.h 	\
 	gstg1mp4dec.h  \
 	gstg1vp8dec.h  \
+	gstg1jpegdec.h  \
 	gstg1h264dec.h
