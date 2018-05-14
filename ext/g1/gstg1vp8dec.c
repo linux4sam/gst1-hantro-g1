@@ -37,10 +37,10 @@
 #include "gstg1allocator.h"
 #include "gstg1format.h"
 #include "gstg1result.h"
-#include "fifo.h"
 
-#include <vp8decapi.h>
-#include <dwl.h>
+#include <g1decoder/fifo.h>
+#include <g1decoder/vp8decapi.h>
+#include <g1decoder/dwl.h>
 
 enum
 {

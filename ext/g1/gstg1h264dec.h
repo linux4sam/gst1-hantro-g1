@@ -20,7 +20,7 @@
 
 #include <gst/gst.h>
 #include "gstg1basedec.h"
-#include "h264decapi.h"
+#include <g1decoder/h264decapi.h>
 
 G_BEGIN_DECLS
 #define GST_TYPE_G1_H264_DEC \

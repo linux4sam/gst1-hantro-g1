@@ -38,10 +38,10 @@
 #include "gstg1allocator.h"
 #include "gstg1format.h"
 #include "gstg1result.h"
-#include "fifo.h"
 
-#include <jpegdecapi.h>
-#include <dwl.h>
+#include <g1decoder/dwl.h>
+#include <g1decoder/jpegdecapi.h>
+#include <g1decoder/fifo.h>
 
 #include <string.h>
 #include <stdio.h>

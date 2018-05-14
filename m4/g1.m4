@@ -57,7 +57,7 @@ AC_CHECK_LIB([$G1_LIB], [$3], [G1_LIBS="-l$G1_LIB $G1_LIBS"],
 AC_MSG_ERROR([The $1 library was not found or is unusable. If the library is in a non-standard location
 specify it via G1_LIBS=-Lpath/to/$1/lib/ or --with-g1-$1-path=path/to/$1/lib/lib$2.a]),[$5])
 
-AC_CHECK_HEADER([$4], [], 
+AC_CHECK_HEADER([g1decoder/$4], [],
 AC_MSG_ERROR([Unable to find $4. If the header is in a non-standard location 
 specify it via G1_CFLAGS=-Ipath/to/$1/include/]))
 

@@ -21,7 +21,7 @@
 
 #include <gst/gst.h>
 #include "gstg1basedec.h"
-#include "vp8decapi.h"
+#include <g1decoder/vp8decapi.h>
 
 G_BEGIN_DECLS
 #define GST_TYPE_G1_VP8_DEC \

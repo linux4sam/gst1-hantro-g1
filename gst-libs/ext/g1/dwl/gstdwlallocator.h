@@ -20,7 +20,7 @@
 
 #include <gst/gst.h>
 #include <gst/gstmemory.h>
-#include <dwl.h>
+#include <g1decoder/dwl.h>
 
 #include "gstg1allocator.h"
 

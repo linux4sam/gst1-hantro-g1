@@ -21,7 +21,7 @@
 
 #include <gst/gst.h>
 #include "gstg1basedec.h"
-#include "jpegdecapi.h"
+#include <g1decoder/jpegdecapi.h>
 
 G_BEGIN_DECLS
 #define GST_TYPE_G1_JPEG_DEC \

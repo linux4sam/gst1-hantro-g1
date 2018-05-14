@@ -22,9 +22,9 @@
 
 #include <gst/gst.h>
 #include <gst/video/video.h>
-#include <h264decapi.h>
-#include <mp4decapi.h>
-#include <ppapi.h>
+#include <g1decoder/h264decapi.h>
+#include <g1decoder/mp4decapi.h>
+#include <g1decoder/ppapi.h>
 
 G_BEGIN_DECLS
 

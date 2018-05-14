@@ -24,7 +24,7 @@
 #include <gst/video/gstvideodecoder.h>
 #include "gstdwlallocator.h"
 
-#include <ppapi.h>
+#include <g1decoder/ppapi.h>
 
 G_BEGIN_DECLS
 #define GST_TYPE_G1_BASE_DEC \

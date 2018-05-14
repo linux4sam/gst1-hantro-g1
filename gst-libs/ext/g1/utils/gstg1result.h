@@ -21,10 +21,10 @@
 #define __GST_G1_RESULT_H__
 
 #include <gst/gst.h>
-#include <ppapi.h>
-#include <h264decapi.h>
-#include <mp4decapi.h>
-#include <vp8decapi.h>
+#include <g1decoder/ppapi.h>
+#include <g1decoder/h264decapi.h>
+#include <g1decoder/mp4decapi.h>
+#include <g1decoder/vp8decapi.h>
 
 G_BEGIN_DECLS
 /**

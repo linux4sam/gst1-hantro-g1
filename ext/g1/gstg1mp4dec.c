@@ -50,8 +50,8 @@
 #include "gstg1format.h"
 #include "gstg1result.h"
 
-#include <mp4decapi.h>
-#include <dwl.h>
+#include <g1decoder/mp4decapi.h>
+#include <g1decoder/dwl.h>
 
 enum
 {

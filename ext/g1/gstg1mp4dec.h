@@ -21,7 +21,7 @@
 
 #include <gst/gst.h>
 #include "gstg1basedec.h"
-#include "mp4decapi.h"
+#include <g1decoder/mp4decapi.h>
 
 G_BEGIN_DECLS
 #define GST_TYPE_G1_MP4_DEC     (gst_g1_mp4_dec_get_type())

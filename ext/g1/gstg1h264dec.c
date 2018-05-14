@@ -36,8 +36,8 @@
 #include "gstg1format.h"
 #include "gstg1result.h"
 
-#include <h264decapi.h>
-#include <dwl.h>
+#include <g1decoder/h264decapi.h>
+#include <g1decoder/dwl.h>
 
 enum
 {
