@@ -860,7 +860,6 @@ gst_g1_base_dec_set_property (GObject * object, guint prop_id,
           (gint) g_value_get_uint (value));
       break;
     case PROP_MASK1_LOCATION:
-      g_print ("Location=%s\n", g_value_get_string (value));
       gst_g1_base_dec_config_mask1 (g1dec, g_value_get_string (value),
           -1, -1, -1, -1);
       break;
@@ -1063,8 +1062,6 @@ gst_g1_base_dec_config_mask1 (GstG1BaseDec * g1dec,
       g_free (tmplocation);
     }
   }
-  g_print ("Location2 = %p->%s\n", g1dec->mask1_location,
-      g1dec->mask1_location);
 
   if (x != -1) {
     g1dec->mask1_x = x;
@@ -1285,7 +1282,6 @@ gst_g1_base_dec_setup_pp (GstG1BaseDec * g1dec)
   gst_g1_base_dec_config_saturation (g1dec, g1dec->saturation);
   gst_g1_base_dec_config_crop (g1dec, g1dec->crop_x, g1dec->crop_y,
       g1dec->crop_width, g1dec->crop_height);
-  g_print ("Location3=%p %s\n", g1dec->mask1_location, g1dec->mask1_location);
   gst_g1_base_dec_config_mask1 (g1dec, g1dec->mask1_location, g1dec->mask1_x,
       g1dec->mask1_y, g1dec->mask1_width, g1dec->mask1_height);
 
