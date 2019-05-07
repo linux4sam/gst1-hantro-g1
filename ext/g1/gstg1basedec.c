@@ -773,7 +773,8 @@ gst_g1_base_dec_allocate_output (GstG1BaseDec * dec, GstVideoCodecFrame * frame)
   if (GST_G1_PP_FAILED (ppret)) {
     GST_ERROR_OBJECT (dec, gst_g1_result_pp (ppret));
     ret = GST_FLOW_ERROR;
-    printf ("ppsetconfig failed =%s\n", gst_g1_result_pp (ppret));
+    GST_ERROR_OBJECT (dec, "ppsetconfig failed =%s\n",
+        gst_g1_result_pp (ppret));
     goto memunref;
   }
 
@@ -1090,9 +1091,7 @@ gst_g1_base_dec_config_mask1 (GstG1BaseDec * g1dec,
   /* Check if we have enough info to configure ourselves */
   if (g1dec->mask1_location && g1dec->mask1_height && g1dec->mask1_width
       && g1dec->allocator) {
-    printf ("DEBUG: %s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__);
     if (g1dec->mask1_mem) {
-      printf ("DEBUG: %s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__);
       gst_allocator_free (g1dec->allocator, g1dec->mask1_mem);
       g1dec->mask1_mem = NULL;
     }
@@ -1103,11 +1102,9 @@ gst_g1_base_dec_config_mask1 (GstG1BaseDec * g1dec,
           g1dec->mask1_location, strerror (errno));
       goto exit;
     }
-    printf ("DEBUG: %s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__);
     rgbsize = g1dec->mask1_width * g1dec->mask1_height * 4;
     g1dec->mask1_mem =
         (GstG1Memory *) gst_allocator_alloc (g1dec->allocator, rgbsize, NULL);
-    printf ("DEBUG: %s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__);
     if (rgbsize != fread (g1dec->mask1_mem->virtaddress, 1, rgbsize, rgbfile)) {
       GST_ERROR_OBJECT (g1dec, "error reading mask1 %s", g1dec->mask1_location);
       gst_allocator_free (g1dec->allocator, (GstMemory *) g1dec->mask1_mem);
@@ -1115,7 +1112,6 @@ gst_g1_base_dec_config_mask1 (GstG1BaseDec * g1dec,
       goto exit;
     }
 
-    printf ("DEBUG: %s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__);
     g1dec->ppconfig.ppOutMask1.enable = 1;
     g1dec->ppconfig.ppOutMask1.alphaBlendEna = 1;
     g1dec->ppconfig.ppOutMask1.blendComponentBase =
@@ -1131,7 +1127,6 @@ exit:
     if (rgbfile)
       fclose (rgbfile);
   }
-  printf ("DEBUG: %s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__);
 }
 
 static void
