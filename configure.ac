@@ -57,6 +57,12 @@ AS_AUTOTOOLS_ALTERNATE
 dnl Add parameters for aclocal
 AC_SUBST(ACLOCAL_AMFLAGS, "-I m4 -I common/m4")
 
+dnl set up gettext
+dnl the version check needs to stay here because autopoint greps for it
+AM_GNU_GETTEXT_VERSION([0.17])
+AM_GNU_GETTEXT([external])
+AG_GST_GETTEXT([gst-plugins-bad-$GST_API_VERSION])
+
 dnl *** check for arguments to configure ***
 
 AG_GST_ARG_DISABLE_FATAL_WARNINGS
@@ -78,7 +84,9 @@ AG_GST_ARG_ENABLE_EXTERNAL
 
 AG_GST_ARG_ENABLE_EXPERIMENTAL
 
+AG_GST_PKG_CONFIG_PATH
 dnl *** checks for platform ***
+AG_GST_PLATFORM
 
 dnl * hardware/architecture *
 
@@ -99,10 +107,6 @@ dnl determine c++ compiler
 AC_PROG_CXX
 dnl determine if c++ is available on this system
 AC_CHECK_PROG(HAVE_CXX, $CXX, yes, no)
-
-dnl determine c++ preprocessor
-dnl FIXME: do we need this ?
-AC_PROG_CXXCPP
 
 AC_PROG_OBJC
 
@@ -147,12 +151,18 @@ dnl GLib
 GLIB_REQ=2.32.0
 AG_GST_GLIB_CHECK([$GLIB_REQ])
 
+PKG_CHECK_MODULES(GMODULE_NO_EXPORT, gmodule-no-export-2.0)
+
 dnl checks for gstreamer
 dnl uninstalled is selected preferentially -- see pkg-config(1)
 AG_GST_CHECK_GST($GST_API_VERSION, [$GST_REQ], yes)
 AG_GST_CHECK_GST_BASE($GST_API_VERSION, [$GST_REQ], yes)
-AG_GST_CHECK_GST_CONTROLLER($GST_API_VERSION, [$GST_REQ], yes) 
 AG_GST_CHECK_GST_CHECK($GST_API_VERSION, [$GST_REQ], no)
+AG_GST_CHECK_GST_CONTROLLER($GST_API_VERSION, [$GST_REQ], yes)
+AG_GST_PKG_CHECK_MODULES(GST_VIDEO, gstreamer-video-[$GST_API_VERSION], [$GSTPB_REQ], yes)
+AG_GST_PKG_CHECK_MODULES(GST_AUDIO, gstreamer-audio-[$GST_API_VERSION], [$GSTPB_REQ], yes)
+AG_GST_PKG_CHECK_MODULES(GST_PBUTILS, gstreamer-pbutils-[$GST_API_VERSION], [$GSTPB_REQ], yes)
+
 
 GST_TOOLS_DIR=`$PKG_CONFIG --variable=toolsdir gstreamer-$GST_API_VERSION`
 if test -z $GST_TOOLS_DIR; then
@@ -210,14 +220,14 @@ dnl define an ERROR_CFLAGS Makefile variable
 dnl -Wundef: too many broken headers
 AG_GST_SET_ERROR_CFLAGS($FATAL_WARNINGS, [
       -Wmissing-declarations -Wmissing-prototypes -Wredundant-decls
-      -Wwrite-strings -Wold-style-definition -Waggregate-return
+      -Wwrite-strings -Wformat-security -Wold-style-definition
       -Winit-self -Wmissing-include-dirs -Waddress -Wno-multichar
       -Wnested-externs $NO_WARNINGS])
 
 dnl define an ERROR_CXXFLAGS Makefile variable
 AG_GST_SET_ERROR_CXXFLAGS($FATAL_WARNINGS, [
         -Wmissing-declarations -Wredundant-decls
-        -Wwrite-strings
+        -Wwrite-strings -Wformat-nonliteral -Wformat-security
         -Winit-self -Wmissing-include-dirs -Waddress -Wno-multichar
         $NO_WARNINGS])
 

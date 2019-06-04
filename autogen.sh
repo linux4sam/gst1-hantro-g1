@@ -4,7 +4,6 @@ test -n "$srcdir" || srcdir=.
 olddir=`pwd`
 cd "$srcdir"
 
-DIE=0
 package=gst-hantro-g1
 srcfile=ext/g1/gstg1.c
 
@@ -29,36 +28,49 @@ fi
 if test ! \( -x .git/hooks/pre-commit -a -L .git/hooks/pre-commit \);
 then
     rm -f .git/hooks/pre-commit
-    ln -s ../../common/hooks/pre-commit.hook .git/hooks/pre-commit
+    if ! ln -s ../../common/hooks/pre-commit.hook .git/hooks/pre-commit 2> /dev/null
+    then
+        echo "Failed to create commit hook symlink, copying instead ..."
+        cp common/hooks/pre-commit.hook .git/hooks/pre-commit
+    fi
+fi
+
+# GNU gettext automake support doesn't get along with git.
+# https://bugzilla.gnome.org/show_bug.cgi?id=661128
+if test -d po ; then
+  touch -t 200001010000 po/gst-plugins-bad-1.0.pot
 fi
 
 CONFIGURE_DEF_OPT='--enable-maintainer-mode --enable-gtk-doc'
 
 if test "x$package" = "xgstreamer"; then
-  CONFIGURE_DEF_OPT="$CONFIGURE_DEF_OPT --enable-docbook --enable-failing-tests --enable-poisoning"
+  CONFIGURE_DEF_OPT="$CONFIGURE_DEF_OPT --enable-failing-tests --enable-poisoning"
+elif test "x$package" = "xgst-plugins-bad"; then
+  CONFIGURE_DEF_OPT="$CONFIGURE_DEF_OPT --with-player-tests"
 fi
 
 autogen_options $@
 
 printf "+ check for build tools"
-if test ! -z "$NOCHECK"; then echo ": skipped version checks"; else  echo; fi
-version_check "autoconf" "$AUTOCONF autoconf autoconf270 autoconf269 autoconf268 " \
-              "ftp://ftp.gnu.org/pub/gnu/autoconf/" 2 68 || DIE=1
-version_check "automake" "$AUTOMAKE automake automake-1.11" \
-              "ftp://ftp.gnu.org/pub/gnu/automake/" 1 11 || DIE=1
-version_check "autopoint" "autopoint" \
-              "ftp://ftp.gnu.org/pub/gnu/gettext/" 0 17 || DIE=1
-version_check "libtoolize" "$LIBTOOLIZE libtoolize glibtoolize" \
-              "ftp://ftp.gnu.org/pub/gnu/libtool/" 2 2 6 || DIE=1
-version_check "pkg-config" "" \
-              "http://www.freedesktop.org/software/pkgconfig" 0 8 0 || DIE=1
+if test -z "$NOCHECK"; then
+  echo
 
-die_check $DIE
+  printf "  checking for autoreconf ... "
+  echo
+  which "autoreconf" 2>/dev/null || {
+    echo "not found! Please install the autoconf package."
+    exit 1
+  }
 
-aclocal_check || DIE=1
-autoheader_check || DIE=1
-
-die_check $DIE
+  printf "  checking for pkg-config ... "
+  echo
+  which "pkg-config" 2>/dev/null || {
+    echo "not found! Please install pkg-config."
+    exit 1
+  }
+else
+  echo ": skipped version checks"
+fi
 
 # if no arguments specified then this will be printed
 if test -z "$*" && test -z "$NOCONFIGURE"; then
@@ -72,23 +84,14 @@ fi
 toplevel_check $srcfile
 
 # autopoint
-if test -d po ; then
-  tool_run "$autopoint" "--force"
+if test -d po && grep ^AM_GNU_GETTEXT_VERSION configure.ac >/dev/null ; then
+  tool_run "autopoint" "--force"
 fi
 
 # aclocal
 if test -f acinclude.m4; then rm acinclude.m4; fi
 
-tool_run "$libtoolize" "--copy --force"
-tool_run "$aclocal" "-I m4 -I common/m4 $ACLOCAL_FLAGS"
-tool_run "$autoheader"
-
-# touch the stamp-h.in build stamp so we don't re-run autoheader in maintainer mode
-echo timestamp > stamp-h.in 2> /dev/null
-
-tool_run "$autoconf"
-debug "automake: $automake"
-tool_run "$automake" "--add-missing --copy"
+autoreconf --force --install || exit 1
 
 test -n "$NOCONFIGURE" && {
   echo "+ skipping configure stage for package $package, as requested."
