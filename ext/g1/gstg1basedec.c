@@ -488,7 +488,7 @@ dsterror:
   }
 srcerror:
   {
-    GST_ERROR_OBJECT (dec, errormsg);
+    GST_ERROR_OBJECT (dec, "%s", errormsg);
     gst_allocator_free (dec->allocator, *dst);
     *dst = NULL;
     return FALSE;
@@ -533,7 +533,7 @@ gst_g1_base_dec_stream_header (GstVideoDecoder * decoder)
     mem = gst_buffer_get_all_memory (streamheader);
     if (!GST_IS_G1_ALLOCATOR (mem->allocator)) {
       if (!gst_g1_base_dec_copy_memory (g1dec, &g1mem, mem)) {
-        GST_ERROR_OBJECT (g1dec,
+        GST_ERROR_OBJECT (g1dec, "%s",
             "unable to copy stream header to contiguous memory");
         ret = GST_FLOW_NOT_SUPPORTED;
         goto exit;
@@ -576,7 +576,7 @@ gst_g1_base_dec_handle_frame (GstVideoDecoder * decoder,
   GST_LOG_OBJECT (g1dec, "Testing contiguousness");
   if (!GST_IS_G1_ALLOCATOR (mem->allocator)) {
     if (!gst_g1_base_dec_copy_memory (g1dec, &g1mem, mem)) {
-      GST_ERROR_OBJECT (g1dec,
+      GST_ERROR_OBJECT (g1dec, "%s",
           "unable to copy input buffer to contiguous memory");
       ret = GST_FLOW_NOT_SUPPORTED;
       goto exit;
@@ -771,7 +771,7 @@ gst_g1_base_dec_allocate_output (GstG1BaseDec * dec, GstVideoCodecFrame * frame)
 
   ppret = PPSetConfig (dec->pp, &dec->ppconfig);
   if (GST_G1_PP_FAILED (ppret)) {
-    GST_ERROR_OBJECT (dec, gst_g1_result_pp (ppret));
+    GST_ERROR_OBJECT (dec, "%s", gst_g1_result_pp (ppret));
     ret = GST_FLOW_ERROR;
     GST_ERROR_OBJECT (dec, "ppsetconfig failed =%s\n",
         gst_g1_result_pp (ppret));
@@ -810,7 +810,7 @@ gst_g1_base_dec_push_data (GstG1BaseDec * dec, GstVideoCodecFrame * frame)
 
   ppret = PPGetResult (dec->pp);
   if (GST_G1_PP_FAILED (ppret)) {
-    GST_ERROR_OBJECT (dec, gst_g1_result_pp (ppret));
+    GST_ERROR_OBJECT (dec, "%s", gst_g1_result_pp (ppret));
     ret = GST_FLOW_ERROR;
     goto exit;
   }

@@ -177,7 +177,7 @@ gst_g1_h264_dec_open (GstG1BaseDec * g1dec)
       dec->disable_output_reordering, dec->intra_freeze_concealment,
       dec->use_display_smoothing, flags);
   if (GST_G1_H264_FAILED (decret)) {
-    GST_ERROR_OBJECT (dec, gst_g1_result_h264 (decret));
+    GST_ERROR_OBJECT (dec, "%s", gst_g1_result_h264 (decret));
     ret = FALSE;
     goto exit;
   }
@@ -256,7 +256,7 @@ gst_g1_h264_dec_parse_header (GstG1H264Dec * dec)
 
   decret = H264DecGetInfo (g1dec->codec, &header);
   if (GST_G1_H264_FAILED (decret)) {
-    GST_ERROR_OBJECT (g1dec, gst_g1_result_h264 (decret));
+    GST_ERROR_OBJECT (g1dec, "%s", gst_g1_result_h264 (decret));
     ret = GST_FLOW_ERROR;
     goto exit;
   }
@@ -419,7 +419,7 @@ gst_g1_h264_dec_decode (GstG1BaseDec * g1dec, GstVideoCodecFrame * frame)
       case H264DEC_STREAM_NOT_SUPPORTED:
       case H264DEC_STRM_ERROR:
         GST_VIDEO_DECODER_ERROR (dec, 0, STREAM, DECODE, ("stream error"),
-            (gst_g1_result_h264 (decret)), ret);
+            ("%s", gst_g1_result_h264 (decret)), ret);
         break;
 
       case H264DEC_HW_TIMEOUT:
@@ -427,7 +427,7 @@ gst_g1_h264_dec_decode (GstG1BaseDec * g1dec, GstVideoCodecFrame * frame)
       case H264DEC_SYSTEM_ERROR:
       case H264DEC_DWL_ERROR:
         GST_ELEMENT_ERROR (dec, RESOURCE, FAILED, ("G1 system error"),
-            (gst_g1_result_h264 (decret)));
+            ("%s", gst_g1_result_h264 (decret)));
         ret = GST_FLOW_ERROR;
         error = TRUE;
         break;

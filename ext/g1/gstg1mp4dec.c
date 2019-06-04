@@ -195,7 +195,7 @@ gst_g1_mp4_dec_open (GstG1BaseDec * g1dec)
       dec->numFrameBuffers, DEC_REF_FRM_RASTER_SCAN);
 
   if (GST_G1_MP4_FAILED (decret)) {
-    GST_ERROR_OBJECT (dec, gst_g1_result_mp4 (decret));
+    GST_ERROR_OBJECT (dec, "%s", gst_g1_result_mp4 (decret));
     ret = FALSE;
     goto exit;
   }
@@ -462,7 +462,7 @@ gst_g1_mp4_dec_decode (GstG1BaseDec * g1dec, GstVideoCodecFrame * frame)
       case MP4DEC_STRM_NOT_SUPPORTED:
       case MP4DEC_STRM_ERROR:
         GST_VIDEO_DECODER_ERROR (dec, 0, STREAM, DECODE,
-            ("stream error"), (gst_g1_result_mp4 (decret)), ret);
+            ("stream error"), ("%s", gst_g1_result_mp4 (decret)), ret);
         error = TRUE;
         break;
       case MP4DEC_HW_TIMEOUT:
@@ -470,7 +470,7 @@ gst_g1_mp4_dec_decode (GstG1BaseDec * g1dec, GstVideoCodecFrame * frame)
       case MP4DEC_SYSTEM_ERROR:
       case MP4DEC_DWL_ERROR:
         GST_ELEMENT_ERROR (dec, RESOURCE, FAILED,
-            ("G1 system error"), (gst_g1_result_mp4 (decret)));
+            ("G1 system error"), ("%s", gst_g1_result_mp4 (decret)));
         ret = GST_FLOW_ERROR;
         error = TRUE;
         break;

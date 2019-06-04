@@ -99,7 +99,7 @@ GST_FRAMEBUFFERSINK_MESSAGE_OBJECT (GstFramebufferSink * framebuffersink,
 {
   if (!framebuffersink->silent)
     g_print ("%s.\n", message);
-  GST_INFO_OBJECT (framebuffersink, message);
+    GST_INFO_OBJECT (framebuffersink, "%s", message);
 }
 
 #define ALIGNMENT_GET_ALIGN_BYTES(offset, align) \

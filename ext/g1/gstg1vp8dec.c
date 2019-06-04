@@ -159,7 +159,7 @@ gst_g1_vp8_dec_open (GstG1BaseDec * g1dec)
   decret = VP8DecInit ((VP8DecInst *) & g1dec->codec, VP8DEC_VP8,
       dec->error_concealment, dec->numFrameBuffers, DEC_REF_FRM_RASTER_SCAN);
   if (GST_G1_VP8_FAILED (decret)) {
-    GST_ERROR_OBJECT (dec, gst_g1_result_vp8 (decret));
+    GST_ERROR_OBJECT (dec, "%s", gst_g1_result_vp8 (decret));
     ret = FALSE;
     goto exit;
   }
@@ -403,7 +403,7 @@ gst_g1_vp8_dec_decode (GstG1BaseDec * g1dec, GstVideoCodecFrame * frame)
         break;
       case VP8DEC_STRM_ERROR:
         GST_VIDEO_DECODER_ERROR (dec, 0, STREAM, DECODE,
-            ("stream error"), (gst_g1_result_vp8 (decret)), ret);
+            ("stream error"), ("%s", gst_g1_result_vp8 (decret)), ret);
         error = TRUE;
         break;
       case VP8DEC_HW_TIMEOUT:
@@ -411,7 +411,7 @@ gst_g1_vp8_dec_decode (GstG1BaseDec * g1dec, GstVideoCodecFrame * frame)
       case VP8DEC_SYSTEM_ERROR:
       case VP8DEC_DWL_ERROR:
         GST_ELEMENT_ERROR (dec, RESOURCE, FAILED,
-            ("G1 system error"), (gst_g1_result_vp8 (decret)));
+            ("G1 system error"), ("%s", gst_g1_result_vp8 (decret)));
         ret = GST_FLOW_ERROR;
         error = TRUE;
         break;

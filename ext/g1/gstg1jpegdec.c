@@ -214,7 +214,7 @@ gst_g1_jpeg_dec_open (GstG1BaseDec * g1dec)
 
   decret = JpegDecInit ((JpegDecInst *) & g1dec->codec);
   if (GST_G1_JPEG_FAILED (decret)) {
-    GST_ERROR_OBJECT (dec, gst_g1_result_jpeg (decret));
+    GST_ERROR_OBJECT (dec, "%s", gst_g1_result_jpeg (decret));
     ret = FALSE;
     goto exit;
   }
@@ -291,7 +291,7 @@ gst_g1_jpeg_dec_decode (GstG1BaseDec * g1dec, GstVideoCodecFrame * frame)
 
   decret = JpegDecGetImageInfo (g1dec->codec, &jpeginput, &imageInfo);
   if (GST_G1_JPEG_FAILED (decret)) {
-    GST_ERROR_OBJECT (dec, gst_g1_result_jpeg (decret));
+    GST_ERROR_OBJECT (dec, "%s", gst_g1_result_jpeg (decret));
     return ret;
   } else {
     GST_LOG_OBJECT (dec, "imageInfo: \n"
@@ -406,7 +406,7 @@ gst_g1_jpeg_dec_decode (GstG1BaseDec * g1dec, GstVideoCodecFrame * frame)
       case JPEGDEC_INCREASE_INPUT_BUFFER:
       case JPEGDEC_SLICE_MODE_UNSUPPORTED:
         GST_VIDEO_DECODER_ERROR (dec, 0, STREAM, DECODE,
-            ("G1 JpegDec error"), (gst_g1_result_jpeg (decret)), ret);
+            ("G1 JpegDec error"), ("%s", gst_g1_result_jpeg (decret)), ret);
         ret = GST_FLOW_ERROR;
         error = TRUE;
         break;
@@ -415,7 +415,7 @@ gst_g1_jpeg_dec_decode (GstG1BaseDec * g1dec, GstVideoCodecFrame * frame)
       case JPEGDEC_HW_BUS_ERROR:
       case JPEGDEC_SYSTEM_ERROR:
         GST_ELEMENT_ERROR (dec, RESOURCE, FAILED,
-            ("G1 stream error"), (gst_g1_result_jpeg (decret)));
+            ("G1 stream error"), ("%s", gst_g1_result_jpeg (decret)));
         ret = GST_FLOW_ERROR;
         error = TRUE;
         break;

@@ -101,7 +101,7 @@ GST_DRMSINK_MESSAGE_OBJECT (GstDrmsink * drmsink, const gchar * message)
 {
   if (!drmsink->framebuffersink.silent)
     g_print ("%s.\n", message);
-  GST_INFO_OBJECT (drmsink, message);
+    GST_INFO_OBJECT (drmsink, "%s", message);
 }
 
 #define DEFAULT_DRM_DEVICE "/dev/dri/card0"
@@ -371,10 +371,10 @@ gst_drmsink_find_mode_and_plane (GstDrmsink * drmsink, GstVideoRectangle * dim)
     goto error_no_mode;
 
   g_sprintf (s, "Connected encoder: id = %u", connector->encoder_id);
-  GST_INFO_OBJECT (drmsink, s);
+  GST_INFO_OBJECT (drmsink, "%s", s);
   for (i = 0; i < connector->count_encoders; i++) {
     g_sprintf (s, "Available encoder: id = %u", connector->encoders[i]);
-    GST_INFO_OBJECT (drmsink, s);
+    GST_INFO_OBJECT (drmsink, "%s", s);
   }
 
   /* Now get the encoder */
@@ -1025,7 +1025,7 @@ gst_drmsink_video_memory_allocator_new (GstFramebufferSink * framebuffersink,
   str = g_strdup_printf ("Created video memory allocator %s, %dx%d, format %s",
       s, drmsink_video_memory_allocator->w, drmsink_video_memory_allocator->h,
       gst_video_format_to_string (GST_VIDEO_INFO_FORMAT (info)));
-  GST_INFO_OBJECT (drmsink, str);
+  GST_INFO_OBJECT (drmsink, "%s", str);
   g_free (str);
   return GST_ALLOCATOR_CAST (drmsink_video_memory_allocator);
 }
