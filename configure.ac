@@ -240,6 +240,12 @@ dnl these are all the gst plug-ins, compilable without additional libs
 dnl AG_GST_CHECK_PLUGIN(pluginname)
 
 dnl *** sys plug-ins ***
+dnl *** kms ***
+translit(dnm, m, l) AM_CONDITIONAL(USE_KMS, true)
+AG_GST_CHECK_FEATURE(KMS, [drm/kms libraries], kms, [
+  AG_GST_PKG_CHECK_MODULES(GST_ALLOCATORS, gstreamer-allocators-1.0)
+  PKG_CHECK_MODULES([KMS_DRM], [libdrm >= 2.4.55], HAVE_KMS=yes, HAVE_KMS=no)
+])
 
 dnl *** ext plug-ins ***
 dnl keep this list sorted alphabetically !
@@ -261,6 +267,7 @@ else
 dnl not building plugins with external dependencies,
 dnl but we still need to set the conditionals
 AM_CONDITIONAL(USE_G1, false)
+AM_CONDITIONAL(USE_KMS, false)
 
 fi dnl of EXT plugins
 
