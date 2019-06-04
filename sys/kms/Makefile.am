@@ -1,12 +1,13 @@
-plugin_LTLIBRARIES = libgstg1kms.la
-libgstg1kms_la_SOURCES = 			\
+plugin_LTLIBRARIES = libgstg1kmssink.la
+
+libgstg1kmssink_la_SOURCES = 			\
 	gstg1kmssink.c				\
 	gstkmsutils.c				\
 	gstkmsallocator.c			\
 	gstkmsbufferpool.c			\
-	$(NUL)
+	$(NULL)
 
-libgstg1kms_la_CFLAGS = 			\
+libgstg1kmssink_la_CFLAGS = 			\
 	$(GST_PLUGINS_BASE_CFLAGS) 		\
 	$(GST_BASE_CFLAGS) 			\
 	$(GST_VIDEO_CFLAGS)			\
@@ -17,7 +18,7 @@ libgstg1kms_la_CFLAGS = 			\
        -I$(top_builddir)/gst-libs/ext/g1/bus \
 	$(NULL)
 
-libgstg1kms_la_LIBADD = 			\
+libgstg1kmssink_la_LIBADD = 			\
 	$(GST_PLUGINS_BASE_LIBS) 		\
 	$(GST_BASE_LIBS) 			\
 	$(GST_VIDEO_LIBS)			\
@@ -29,7 +30,7 @@ libgstg1kms_la_LIBADD = 			\
 	$(top_builddir)/gst-libs/ext/g1/bus/libgstbusallocator-@GST_API_VERSION@.la \
 	$(NULL)
 
-libgstg1kms_la_LDFLAGS = 			\
+libgstg1kmssink_la_LDFLAGS = 			\
 	$(GST_PLUGIN_LDFLAGS)			\
 	$(NULL)
 
