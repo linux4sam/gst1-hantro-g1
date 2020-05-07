@@ -684,9 +684,12 @@ gst_g1_base_dec_allocate_output (GstG1BaseDec * dec, GstVideoCodecFrame * frame)
   GstVideoInfo *vinfo;
   GstVideoFormatInfo *finfo;
   GstMemory *mem;
+  GstMapInfo minfo;
   guint32 physaddress;
   GstFlowReturn ret;
   PPResult ppret;
+  GstAllocationParams params = (const GstAllocationParams) { 0 };
+  guint32 size;
 
   g_return_val_if_fail (dec, GST_FLOW_ERROR);
   g_return_val_if_fail (frame, GST_FLOW_ERROR);
@@ -699,7 +702,6 @@ gst_g1_base_dec_allocate_output (GstG1BaseDec * dec, GstVideoCodecFrame * frame)
     ret = GST_FLOW_OK;
     goto exit;
   }
-
 
   state = gst_video_decoder_get_output_state (bdec);
   vinfo = &state->info;
@@ -716,58 +718,67 @@ gst_g1_base_dec_allocate_output (GstG1BaseDec * dec, GstVideoCodecFrame * frame)
         ("unable to allocate memory for post processor"), (NULL));
     goto stateunref;
   }
-
-  /* Whether to use fbdevsink or drmsink: drmsink plugin supports overlay video rendering */
-  if (dec->use_drm) {
-    /*If sink is drmsink, then get physical address of gem object, which needs to pass to PP API */
-    physaddress = gst_g1_gem_get_physical ();
-
-    /* Width and Height of the video overlay taken from user */
-
-    dec->ppconfig.ppOutFrmBuffer.enable = 0;
-    dec->ppconfig.ppOutFrmBuffer.writeOriginX = dec->x;
-    dec->ppconfig.ppOutFrmBuffer.writeOriginY = dec->y;
-    dec->ppconfig.ppOutFrmBuffer.frameBufferWidth =
-        (divRoundClosest (dec->w, 16) * 16);
-    dec->ppconfig.ppOutFrmBuffer.frameBufferHeight =
-        (divRoundClosest (dec->h, 16) * 16);
-
-    dec->ppconfig.ppOutImg.width =
-        (divRoundClosest (GST_VIDEO_INFO_WIDTH (vinfo), 16) * 16);
-    dec->ppconfig.ppOutImg.height =
-        (divRoundClosest (GST_VIDEO_INFO_HEIGHT (vinfo), 16) * 16);
-
-  } else {
-    /* It is mandatory for this buffer to be G1 */
-    mem = gst_buffer_get_all_memory (frame->output_buffer);
-    g_return_val_if_fail (GST_IS_G1_ALLOCATOR (mem->allocator), GST_FLOW_ERROR);
-    physaddress = gst_g1_allocator_get_physical (mem);
-
-    dec->ppconfig.ppOutImg.width = GST_VIDEO_INFO_WIDTH (vinfo);
-    dec->ppconfig.ppOutImg.height = GST_VIDEO_INFO_HEIGHT (vinfo);
-
-  }
-
 #define Y 0
 #define CbCr 1
 
-  dec->ppconfig.ppOutImg.bufferBusAddr = physaddress +
-      GST_VIDEO_INFO_PLANE_OFFSET (vinfo, Y);
-  dec->ppconfig.ppOutImg.bufferChromaBusAddr =
-      dec->ppconfig.ppOutImg.bufferBusAddr + GST_VIDEO_INFO_PLANE_OFFSET (vinfo,
-      CbCr);
+  /* Width and Height of the video overlay taken from user */
+
+  dec->ppconfig.ppOutFrmBuffer.enable = 0;
+  dec->ppconfig.ppOutFrmBuffer.writeOriginX = dec->x;
+  dec->ppconfig.ppOutFrmBuffer.writeOriginY = dec->y;
+  dec->ppconfig.ppOutFrmBuffer.frameBufferWidth =
+      (divRoundClosest (dec->w, 16) * 16);
+  dec->ppconfig.ppOutFrmBuffer.frameBufferHeight =
+      (divRoundClosest (dec->h, 16) * 16);
+
+  dec->ppconfig.ppOutImg.width =
+      (divRoundClosest (GST_VIDEO_INFO_WIDTH (vinfo), 16) * 16);
+  dec->ppconfig.ppOutImg.height =
+      (divRoundClosest (GST_VIDEO_INFO_HEIGHT (vinfo), 16) * 16);
+
   dec->ppconfig.ppOutImg.pixFormat = gst_g1_format_gst_to_pp (finfo);
   dec->ppconfig.ppOutRgb.ditheringEnable = 1;
 
+  GST_LOG_OBJECT (dec, "w = %d h = %d \n", dec->ppconfig.ppOutImg.width,
+      dec->ppconfig.ppOutImg.height);
 
-#if 0
-  dec->ppconfig.ppOutFrmBuffer.enable = 0;
-  dec->ppconfig.ppOutFrmBuffer.writeOriginX = 200;
-  dec->ppconfig.ppOutFrmBuffer.writeOriginY = 120;
-  dec->ppconfig.ppOutFrmBuffer.frameBufferWidth = 400;
-  dec->ppconfig.ppOutFrmBuffer.frameBufferHeight = 240;
-#endif
+  /* Whether to use fbdevsink or drmsink: drmsink plugin supports overlay video rendering */
+  if (dec->use_drm) {
 
+    /*If sink is drmsink, then get physical address of gem object, which needs to pass to PP API */
+    physaddress = gst_g1_gem_get_physical ();
+
+    dec->ppconfig.ppOutImg.bufferBusAddr = physaddress +
+        GST_VIDEO_INFO_PLANE_OFFSET (vinfo, Y);
+    dec->ppconfig.ppOutImg.bufferChromaBusAddr =
+        dec->ppconfig.ppOutImg.bufferBusAddr +
+        GST_VIDEO_INFO_PLANE_OFFSET (vinfo, CbCr);
+
+    GST_LOG_OBJECT (dec, "Successfully allocated memory 0x%08x", physaddress);
+
+  } else {
+    params.flags |= GST_MEMORY_FLAG_PHYSICALLY_CONTIGUOUS;
+
+    size = dec->ppconfig.ppOutImg.width * dec->ppconfig.ppOutImg.height * 4;
+    mem = gst_allocator_alloc (dec->allocator, size, &params);
+
+    if (!gst_memory_map (mem, &minfo, GST_MAP_WRITE)) {
+      GST_ERROR_OBJECT (dec, "unable to map dst memory");
+      goto stateunref;
+    }
+
+    dec->ppconfig.ppOutImg.bufferBusAddr =
+        gst_g1_allocator_get_physical (minfo.memory) +
+        GST_VIDEO_INFO_PLANE_OFFSET (vinfo, Y);
+    dec->ppconfig.ppOutImg.bufferChromaBusAddr =
+        dec->ppconfig.ppOutImg.bufferBusAddr +
+        GST_VIDEO_INFO_PLANE_OFFSET (vinfo, CbCr);
+
+    gst_memory_unmap (mem, &minfo);
+    gst_buffer_replace_all_memory (frame->output_buffer, (GstMemory *) mem);
+    GST_LOG_OBJECT (dec, "Successfully allocated memory 0x%08x",
+        gst_g1_allocator_get_physical (minfo.memory));
+  }
 
   ppret = PPSetConfig (dec->pp, &dec->ppconfig);
   if (GST_G1_PP_FAILED (ppret)) {
@@ -778,14 +789,12 @@ gst_g1_base_dec_allocate_output (GstG1BaseDec * dec, GstVideoCodecFrame * frame)
     goto memunref;
   }
 
-  ret = GST_FLOW_OK;
-  GST_LOG_OBJECT (dec, "Successfully allocated memory 0x%08x", physaddress);
-
+  return GST_FLOW_OK;
 
 memunref:
   {
     if (!dec->use_drm)
-      gst_memory_unref (mem);
+      gst_allocator_free (dec->allocator, mem);
   }
 stateunref:
   {
