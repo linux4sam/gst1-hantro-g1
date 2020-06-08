@@ -31,9 +31,12 @@
 #include "gstg1result.h"
 #include "gstg1format.h"
 #include "gstg1enum.h"
-
+#include "gstkmsallocator.h"
 #include <string.h>
 #include <stdio.h>
+
+#define Y 0
+#define CbCr 1
 
 int divRoundClosest (const int, const int);
 
@@ -57,7 +60,6 @@ enum
   PROP_MASK1_Y,
   PROP_MASK1_WIDTH,
   PROP_MASK1_HEIGHT,
-  PROP_USE_DRM,
 };
 
 #define PROP_DEFAULT_ROTATION PP_ROTATION_NONE
@@ -69,7 +71,6 @@ enum
 #define PROP_DEFAULT_CROP_WIDTH  0
 #define PROP_DEFAULT_CROP_HEIGHT 0
 #define PROP_DEFAULT_MASK1_LOCATION NULL
-#define PROP_DEFAULT_USE_DRM TRUE
 #define PROP_DEFAULT_MASK1_X 0
 #define PROP_DEFAULT_MASK1_Y 0
 #define PROP_DEFAULT_MASK1_WIDTH 0
@@ -93,12 +94,6 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_PERFORMANCE);
 G_DEFINE_TYPE (GstG1BaseDec, gst_g1_base_dec, GST_TYPE_VIDEO_DECODER);
 
 #define GST_G1_PP_FAILED(ret) ((PP_OK != (ret)))
-
-/* Enable to get physical address of gem, 
-   otherwise hardcoded physical address for debugging */
-#define ATMEL_GET_PHYSICAL
-
-extern guint32 gst_g1_gem_get_physical (void);
 
 static void gst_g1_base_dec_get_property (GObject * object, guint prop_id,
     GValue * value, GParamSpec * pspec);
@@ -244,11 +239,6 @@ gst_g1_base_dec_class_init (GstG1BaseDecClass * klass)
           PROP_DEFAULT_MASK1_HEIGHT,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
-  g_object_class_install_property (gobject_class, PROP_USE_DRM,
-      g_param_spec_boolean ("use-drm", "Use DRM",
-          "Identify fbdev or drm"
-          "true/false", PROP_DEFAULT_USE_DRM, G_PARAM_READWRITE));
-
   g_object_class_install_property (gobject_class, PROP_X,
       g_param_spec_uint ("x",
           "x",
@@ -273,8 +263,6 @@ gst_g1_base_dec_class_init (GstG1BaseDecClass * klass)
           "h",
           "height of the screen ", 0, 4096,
           PROP_DEFAULT_Y, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-
-
 
   parent_class = g_type_class_peek_parent (klass);
 
@@ -332,7 +320,6 @@ gst_g1_base_dec_init (GstG1BaseDec * dec)
   dec->x = PROP_DEFAULT_X;
   dec->y = PROP_DEFAULT_Y;
   dec->mask1_mem = NULL;
-  dec->use_drm = PROP_DEFAULT_USE_DRM;
 }
 
 static gboolean
@@ -411,7 +398,6 @@ gst_g1_base_dec_propose_allocation (GstVideoDecoder * decoder, GstQuery * query)
 
   return GST_VIDEO_DECODER_CLASS (parent_class)->propose_allocation (decoder,
       query);
-
 }
 
 static gboolean
@@ -543,7 +529,6 @@ gst_g1_base_dec_stream_header (GstVideoDecoder * decoder)
       gst_buffer_replace_all_memory (streamheader, g1mem);
     }
 
-    GST_FIXME_OBJECT (g1dec, "Passing stream header to decoder");
     g_return_val_if_fail (g1decclass->decode_header, GST_FLOW_NOT_SUPPORTED);
     ret = g1decclass->decode_header (g1dec, streamheader);
   }
@@ -573,7 +558,6 @@ gst_g1_base_dec_handle_frame (GstVideoDecoder * decoder,
 
   mem = gst_buffer_get_all_memory (frame->input_buffer);
 
-  GST_LOG_OBJECT (g1dec, "Testing contiguousness");
   if (!GST_IS_G1_ALLOCATOR (mem->allocator)) {
     if (!gst_g1_base_dec_copy_memory (g1dec, &g1mem, mem)) {
       GST_ERROR_OBJECT (g1dec, "%s",
@@ -585,7 +569,6 @@ gst_g1_base_dec_handle_frame (GstVideoDecoder * decoder,
     gst_buffer_replace_all_memory (frame->input_buffer, g1mem);
   }
 
-  GST_LOG_OBJECT (g1dec, "Passing buffer to decoder");
   ret = g1decclass->decode (g1dec, frame);
   end = gst_util_get_timestamp ();
   GST_CAT_DEBUG (GST_CAT_PERFORMANCE, "Processed buffer in %" GST_TIME_FORMAT,
@@ -685,11 +668,12 @@ gst_g1_base_dec_allocate_output (GstG1BaseDec * dec, GstVideoCodecFrame * frame)
   GstVideoFormatInfo *finfo;
   GstMemory *mem;
   GstMapInfo minfo;
-  guint32 physaddress;
+  guint32 physaddress = NULL;
   GstFlowReturn ret;
   PPResult ppret;
   GstAllocationParams params = (const GstAllocationParams) { 0 };
   guint32 size;
+  GstKMSMemory *kmsmem = NULL;
 
   g_return_val_if_fail (dec, GST_FLOW_ERROR);
   g_return_val_if_fail (frame, GST_FLOW_ERROR);
@@ -718,8 +702,6 @@ gst_g1_base_dec_allocate_output (GstG1BaseDec * dec, GstVideoCodecFrame * frame)
         ("unable to allocate memory for post processor"), (NULL));
     goto stateunref;
   }
-#define Y 0
-#define CbCr 1
 
   /* Width and Height of the video overlay taken from user */
 
@@ -739,24 +721,18 @@ gst_g1_base_dec_allocate_output (GstG1BaseDec * dec, GstVideoCodecFrame * frame)
   dec->ppconfig.ppOutImg.pixFormat = gst_g1_format_gst_to_pp (finfo);
   dec->ppconfig.ppOutRgb.ditheringEnable = 1;
 
-  GST_LOG_OBJECT (dec, "w = %d h = %d \n", dec->ppconfig.ppOutImg.width,
-      dec->ppconfig.ppOutImg.height);
+  /*
+   * If it is g1kmssink and zero-copy is enabled, then post processing
+   * module copies the video frames directly to the frame buffer.
+   * Get physical address of a framebuffer
+   */
+  kmsmem = (GstKMSMemory *) gst_buffer_get_all_memory (frame->output_buffer);
+  if (kmsmem) {
+    physaddress = kmsmem->fb_phys_addr;
+    gst_memory_unref (kmsmem);
+  }
 
-  /* Whether to use fbdevsink or drmsink: drmsink plugin supports overlay video rendering */
-  if (dec->use_drm) {
-
-    /*If sink is drmsink, then get physical address of gem object, which needs to pass to PP API */
-    physaddress = gst_g1_gem_get_physical ();
-
-    dec->ppconfig.ppOutImg.bufferBusAddr = physaddress +
-        GST_VIDEO_INFO_PLANE_OFFSET (vinfo, Y);
-    dec->ppconfig.ppOutImg.bufferChromaBusAddr =
-        dec->ppconfig.ppOutImg.bufferBusAddr +
-        GST_VIDEO_INFO_PLANE_OFFSET (vinfo, CbCr);
-
-    GST_LOG_OBJECT (dec, "Successfully allocated memory 0x%08x", physaddress);
-
-  } else {
+  if (!physaddress) {
     params.flags |= GST_MEMORY_FLAG_PHYSICALLY_CONTIGUOUS;
 
     size = dec->ppconfig.ppOutImg.width * dec->ppconfig.ppOutImg.height * 4;
@@ -767,18 +743,19 @@ gst_g1_base_dec_allocate_output (GstG1BaseDec * dec, GstVideoCodecFrame * frame)
       goto stateunref;
     }
 
-    dec->ppconfig.ppOutImg.bufferBusAddr =
-        gst_g1_allocator_get_physical (minfo.memory) +
-        GST_VIDEO_INFO_PLANE_OFFSET (vinfo, Y);
-    dec->ppconfig.ppOutImg.bufferChromaBusAddr =
-        dec->ppconfig.ppOutImg.bufferBusAddr +
-        GST_VIDEO_INFO_PLANE_OFFSET (vinfo, CbCr);
+    physaddress = gst_g1_allocator_get_physical (minfo.memory);
 
     gst_memory_unmap (mem, &minfo);
+
     gst_buffer_replace_all_memory (frame->output_buffer, (GstMemory *) mem);
-    GST_LOG_OBJECT (dec, "Successfully allocated memory 0x%08x",
-        gst_g1_allocator_get_physical (minfo.memory));
   }
+
+  GST_LOG_OBJECT (dec, "physical address for PP 0x%08x", physaddress);
+  dec->ppconfig.ppOutImg.bufferBusAddr = physaddress +
+      GST_VIDEO_INFO_PLANE_OFFSET (vinfo, Y);
+  dec->ppconfig.ppOutImg.bufferChromaBusAddr =
+      dec->ppconfig.ppOutImg.bufferBusAddr +
+      GST_VIDEO_INFO_PLANE_OFFSET (vinfo, CbCr);
 
   ppret = PPSetConfig (dec->pp, &dec->ppconfig);
   if (GST_G1_PP_FAILED (ppret)) {
@@ -793,7 +770,7 @@ gst_g1_base_dec_allocate_output (GstG1BaseDec * dec, GstVideoCodecFrame * frame)
 
 memunref:
   {
-    if (!dec->use_drm)
+    if (!kmsmem)
       gst_allocator_free (dec->allocator, mem);
   }
 stateunref:
@@ -824,7 +801,6 @@ gst_g1_base_dec_push_data (GstG1BaseDec * dec, GstVideoCodecFrame * frame)
     goto exit;
   }
 
-  GST_LOG_OBJECT (dec, "Successfully pushed buffer");
   gst_video_codec_frame_ref (frame);
   ret = gst_video_decoder_finish_frame (bdec, frame);
 
@@ -888,9 +864,6 @@ gst_g1_base_dec_set_property (GObject * object, guint prop_id,
     case PROP_MASK1_HEIGHT:
       gst_g1_base_dec_config_mask1 (g1dec, (gpointer) - 1,
           -1, -1, -1, (gint) g_value_get_uint (value));
-      break;
-    case PROP_USE_DRM:
-      g1dec->use_drm = g_value_get_boolean (value);
       break;
     case PROP_X:
       g1dec->x = (gint) g_value_get_uint (value);
@@ -970,10 +943,6 @@ gst_g1_base_dec_get_property (GObject * object, guint prop_id,
     case PROP_MASK1_HEIGHT:
       g_value_set_uint (value, g1dec->mask1_height);
       break;
-    case PROP_USE_DRM:
-      g_value_set_boolean (value, g1dec->use_drm);
-      break;
-
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;

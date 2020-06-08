@@ -59,6 +59,7 @@ struct _GstKMSMemory
   guint32 fb_id;
   guint32 gem_handle[GST_VIDEO_MAX_PLANES];
   struct kms_bo *bo;
+  guint32 fb_phys_addr;
 };
 
 struct _GstKMSAllocator
@@ -85,7 +86,7 @@ gst_kms_allocator_get_type (void)
      GstMemory *gst_kms_allocator_bo_alloc (GstAllocator * allocator,
     GstVideoInfo * vinfo);
 
-     GstKMSMemory *gst_kms_allocator_dmabuf_import (GstAllocator * allocator,
+    GstKMSMemory *gst_kms_allocator_dmabuf_import (GstAllocator * allocator,
     gint * prime_fds,
     gint n_planes, gsize offsets[GST_VIDEO_MAX_PLANES], GstVideoInfo * vinfo);
 

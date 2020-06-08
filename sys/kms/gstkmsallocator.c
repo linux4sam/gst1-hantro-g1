@@ -42,7 +42,6 @@
 #include "gstkmsallocator.h"
 #include "gstkmsutils.h"
 #include "gstg1kmssink.h"
-#include "gstg1allocator.h"
 
 #define GST_CAT_DEFAULT kmsallocator_debug
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -148,7 +147,6 @@ gst_kms_allocator_memory_create (GstKMSAllocator * allocator,
   gint ret;
   struct drm_mode_create_dumb arg = { 0, };
   struct drm_mode_map_dumb mreq = { 0, };
-  guint32 physaddress;
   guint32 fmt;
 
   if (kmsmem->bo)
@@ -193,9 +191,9 @@ gst_kms_allocator_memory_create (GstKMSAllocator * allocator,
           " %s %d", strerror (-ret), ret);
     }
 
-    physaddress = (guint32) mreq.offset;
-    gst_g1_gem_set_physical ((unsigned int) physaddress);
-    GST_DEBUG_OBJECT (allocator, "Physaddress for PP = 0x%08x \n", physaddress);
+    kmsmem->fb_phys_addr = (guint32) mreq.offset;
+    GST_DEBUG_OBJECT (allocator, "fb Physical address for PP = 0x%08x \n",
+        kmsmem->fb_phys_addr);
   }
   return TRUE;
 

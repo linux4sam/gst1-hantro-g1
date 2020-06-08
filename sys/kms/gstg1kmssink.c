@@ -952,7 +952,7 @@ gst_g1kms_sink_propose_allocation (GstBaseSink * bsink, GstQuery * query)
 
   if (pool) {
     /* we need at least 2 buffer because we hold on to the last one */
-    gst_query_add_allocation_pool (query, pool, size, 0, 0);
+    gst_query_add_allocation_pool (query, pool, size, 2, 0);
     gst_object_unref (pool);
   }
 
@@ -1265,8 +1265,7 @@ gst_g1kms_sink_show_frame (GstVideoSink * vsink, GstBuffer * buf)
 
   res = GST_FLOW_ERROR;
 
-  if (!self->Ismaster || self->zero_copy) {
-    GST_TRACE_OBJECT (self, "In %s : client Mode\n", __func__);
+  if (self->zero_copy) {
     if (!gst_g1kms_sink_sync (self))
       return res;
 

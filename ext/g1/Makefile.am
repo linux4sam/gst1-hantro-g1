@@ -15,7 +15,8 @@ libgstg1_la_CFLAGS = 	$(G1_CFLAGS) $(GST_PLUGINS_BASE_CFLAGS) 	\
 			$(GST_BASE_CFLAGS) $(GST_CFLAGS) $(DEFINES) \
 			-I$(top_builddir)/gst-libs/ext/g1/memalloc/ 	\
 			-I$(top_builddir)/gst-libs/ext/g1/dwl/ 		\
-			-I$(top_builddir)/gst-libs/ext/g1/utils/
+			-I$(top_builddir)/gst-libs/ext/g1/utils/ \
+			-I$(top_builddir)/sys/kms/
 
 libgstg1_la_LIBADD = 	$(G1_LIBS) $(GST_PLUGINS_BASE_LIBS) \
 			-lgstvideo-$(GST_API_VERSION) \

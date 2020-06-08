@@ -14,8 +14,6 @@ libgstg1kmssink_la_CFLAGS = 			\
 	$(GST_ALLOCATORS_CFLAGS)		\
 	$(GST_CFLAGS) 				\
 	$(KMS_DRM_CFLAGS) 			\
-       -I$(top_builddir)/gst-libs/ext/g1/memalloc \
-       -I$(top_builddir)/gst-libs/ext/g1/bus \
 	$(NULL)
 
 libgstg1kmssink_la_LIBADD = 			\
@@ -24,10 +22,7 @@ libgstg1kmssink_la_LIBADD = 			\
 	$(GST_VIDEO_LIBS)			\
 	$(GST_ALLOCATORS_LIBS)			\
 	$(GST_LIBS) 				\
-	$(KMS_DRM_LIBS)		\
-	-lgstvideo-$(GST_API_VERSION) -lrt	\
-	-lgstallocators-$(GST_API_VERSION)	\
-	$(top_builddir)/gst-libs/ext/g1/bus/libgstbusallocator-@GST_API_VERSION@.la \
+	$(KMS_DRM_LIBS)				\
 	$(NULL)
 
 libgstg1kmssink_la_LDFLAGS = 			\
