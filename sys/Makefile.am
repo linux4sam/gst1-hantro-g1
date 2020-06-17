@@ -1,3 +1,1 @@
-SUBDIRS = fbdev	\
-	drmsink \
-	kms
+SUBDIRS = kms
