@@ -296,9 +296,7 @@ gst_g1_base_dec_init (GstG1BaseDec * dec)
   dec->codec = NULL;
   dec->pp = NULL;
   dec->dectype = PP_PIPELINE_DISABLED;
-  dec->ppconfig = (const PPConfig) {
-    {
-  0}};
+  dec->ppconfig = (const PPConfig) { {0} };
   dec->allocator = NULL;
 
   dec->rotation = PROP_DEFAULT_ROTATION;
@@ -384,8 +382,7 @@ gst_g1_base_dec_propose_allocation (GstVideoDecoder * decoder, GstQuery * query)
   GstG1BaseDec *g1dec = GST_G1_BASE_DEC (decoder);
   GstAllocationParams params;
 
-  params = (const GstAllocationParams) {
-  0};
+  params = (const GstAllocationParams) { 0 };
   params.flags |= GST_MEMORY_FLAG_PHYSICALLY_CONTIGUOUS;
 
   GST_INFO_OBJECT (g1dec, "proposing " GST_ALLOCATOR_DWL " allocator");
@@ -718,7 +715,7 @@ gst_g1_base_dec_allocate_output (GstG1BaseDec * dec, GstVideoCodecFrame * frame)
   dec->ppconfig.ppOutImg.height =
       (divRoundClosest (GST_VIDEO_INFO_HEIGHT (vinfo), 16) * 16);
 
-  dec->ppconfig.ppOutImg.pixFormat = gst_g1_format_gst_to_pp (finfo);
+  dec->ppconfig.ppOutImg.pixFormat = gst_format_gst_to_g1 (finfo);
   dec->ppconfig.ppOutRgb.ditheringEnable = 1;
 
   /*
@@ -982,7 +979,7 @@ void
 gst_g1_base_dec_config_format (GstG1BaseDec * dec, GstVideoFormatInfo * fmt,
     gint32 width, gint32 height)
 {
-  dec->ppconfig.ppInImg.pixFormat = gst_g1_format_gst_to_pp (fmt);
+  dec->ppconfig.ppInImg.pixFormat = gst_format_gst_to_g1 (fmt);
   dec->ppconfig.ppInImg.width = width;
   dec->ppconfig.ppInImg.height = height;
 

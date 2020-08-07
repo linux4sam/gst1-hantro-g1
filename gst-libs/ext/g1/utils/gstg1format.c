@@ -20,37 +20,7 @@
 #include "gstg1format.h"
 
 GstVideoFormatInfo
-gst_g1_format_mp4_to_gst (MP4DecOutFormat fmt)
-{
-  GstVideoFormatInfo finfo = (const GstVideoFormatInfo) { 0 };
-
-  switch (fmt) {
-    case MP4DEC_SEMIPLANAR_YUV420:
-      finfo.name = "NV12";
-      finfo.description = "raster semiplanar 4:2:0 YUV";
-      finfo.format = GST_VIDEO_FORMAT_NV12;
-      finfo.flags |= GST_VIDEO_FORMAT_FLAG_YUV;
-      break;
-    case MP4DEC_TILED_YUV420:
-      finfo.name = "NV12";
-      finfo.description = "tiled semiplanar 4:2:0 YUV";
-      finfo.format = GST_VIDEO_FORMAT_NV12;
-      finfo.flags |= GST_VIDEO_FORMAT_FLAG_YUV;
-      /* This version of gstreamer doesn't have support for tiles yet */
-      //finfo.flags |= GST_VIDEO_FORMAT_FLAG_TILED;
-      g_return_val_if_reached (finfo);
-      break;
-    default:
-    g_return_val_if_reached ((const GstVideoFormatInfo) {
-        0});
-  }
-
-  return finfo;
-}
-
-
-GstVideoFormatInfo
-gst_g1_format_h264_to_gst (H264DecOutFormat fmt)
+gst_format_g1_to_gst (guint32 fmt)
 {
   GstVideoFormatInfo finfo = (const GstVideoFormatInfo) { 0 };
 
@@ -77,97 +47,42 @@ gst_g1_format_h264_to_gst (H264DecOutFormat fmt)
       finfo.flags |= GST_VIDEO_FORMAT_FLAG_GRAY;
       break;
     default:
-    g_return_val_if_reached ((const GstVideoFormatInfo) {
-        0});
+    g_return_val_if_reached ((const GstVideoFormatInfo) { 0 });
   }
-
   return finfo;
 }
 
-guint32
-gst_g1_format_gst_to_pp (GstVideoFormatInfo * finfo)
+
+static const struct
 {
-  guint32 ret;
-  GstVideoFormat fmt;
+  GstVideoFormat format;
+  guint32 pp_pixel_format;
+} format_map[] = {
+  {GST_VIDEO_FORMAT_NV12, PP_PIX_FMT_YCBCR_4_2_0_SEMIPLANAR},
+  {GST_VIDEO_FORMAT_NV16, PP_PIX_FMT_YCBCR_4_2_2_SEMIPLANAR},
+  {GST_VIDEO_FORMAT_YUY2, PP_PIX_FMT_YCBCR_4_2_2_INTERLEAVED},
+  {GST_VIDEO_FORMAT_YVYU, PP_PIX_FMT_YCRYCB_4_2_2_INTERLEAVED},
+  {GST_VIDEO_FORMAT_UYVY, PP_PIX_FMT_CBYCRY_4_2_2_INTERLEAVED},
+  {GST_VIDEO_FORMAT_RGBx, PP_PIX_FMT_BGR32},
+  {GST_VIDEO_FORMAT_BGRx, PP_PIX_FMT_RGB32},
+  {GST_VIDEO_FORMAT_RGB15, PP_PIX_FMT_RGB16_5_5_5},
+  {GST_VIDEO_FORMAT_BGR15, PP_PIX_FMT_BGR16_5_5_5},
+  {GST_VIDEO_FORMAT_RGB16, PP_PIX_FMT_RGB16_5_6_5},
+  {GST_VIDEO_FORMAT_BGR16, PP_PIX_FMT_BGR16_5_6_5},
+  {GST_VIDEO_FORMAT_GRAY8, PP_PIX_FMT_YCBCR_4_0_0},
+  {GST_VIDEO_FORMAT_I420, PP_PIX_FMT_YCBCR_4_2_0_PLANAR}
+};
 
-  fmt = GST_VIDEO_FORMAT_INFO_FORMAT (finfo);
+guint32
+gst_format_gst_to_g1 (GstVideoFormatInfo * finfo)
+{
+  gint i;
+  GstVideoFormat fmt = GST_VIDEO_FORMAT_INFO_FORMAT (finfo);
 
-  switch (fmt) {
-    case GST_VIDEO_FORMAT_GRAY8:
-      ret = PP_PIX_FMT_YCBCR_4_0_0;
-      break;
-    case GST_VIDEO_FORMAT_YUY2:
-      ret = PP_PIX_FMT_YCBCR_4_2_2_INTERLEAVED;
-      break;
-    case GST_VIDEO_FORMAT_YVYU:
-      ret = PP_PIX_FMT_YCRYCB_4_2_2_INTERLEAVED;
-      break;
-    case GST_VIDEO_FORMAT_UYVY:
-      ret = PP_PIX_FMT_CBYCRY_4_2_2_INTERLEAVED;
-      break;
-//    case GST_VIDEO_FORMAT_XXXX:
-//      ret = PP_PIX_FMT_CRYCBY_4_2_2_INTERLEAVED;
-//      break;
-    case GST_VIDEO_FORMAT_NV16:
-      ret = PP_PIX_FMT_YCBCR_4_2_2_SEMIPLANAR;
-      break;
-//    case GST_VIDEO_FORMAT_XXXX:
-//      ret = PP_PIX_FMT_YCBCR_4_2_2_TILED_4X4;
-//      break;
-//    case GST_VIDEO_FORMAT_XXXX:
-//      ret = PP_PIX_FMT_YCRYCB_4_2_2_TILED_4X4;
-//      break;
-//    case GST_VIDEO_FORMAT_XXXX:
-//      ret = PP_PIX_FMT_CBYCRY_4_2_2_TILED_4X4;
-//      break;
-//    case GST_VIDEO_FORMAT_XXXX:
-//      ret = PP_PIX_FMT_CRYCBY_4_2_2_TILED_4X4;
-//      break;
-//    case GST_VIDEO_FORMAT_XXXX:
-//      ret = PP_PIX_FMT_YCBCR_4_4_0;
-//      break;
-    case GST_VIDEO_FORMAT_I420:
-      ret = PP_PIX_FMT_YCBCR_4_2_0_PLANAR;
-      break;
-    case GST_VIDEO_FORMAT_NV12:
-      ret = PP_PIX_FMT_YCBCR_4_2_0_SEMIPLANAR;
-      break;
-//    case GST_VIDEO_FORMAT_XXXX:
-//      ret = PP_PIX_FMT_YCBCR_4_2_0_TILED;
-//      break;
-//    case GST_VIDEO_FORMAT_XXXX:
-//      ret = PP_PIX_FMT_YCBCR_4_1_1_SEMIPLANAR;
-//      break;
-//    case GST_VIDEO_FORMAT_XXXX:
-//      ret = PP_PIX_FMT_YCBCR_4_4_4_SEMIPLANAR;
-//      break;
-//    case GST_VIDEO_FORMAT_XXXX:
-//      ret = PP_PIX_FMT_RGB16_CUSTOM;
-//      break;
-    case GST_VIDEO_FORMAT_RGB15:
-      ret = PP_PIX_FMT_RGB16_5_5_5;
-      break;
-    case GST_VIDEO_FORMAT_RGB16:
-      ret = PP_PIX_FMT_RGB16_5_6_5;
-      break;
-    case GST_VIDEO_FORMAT_BGR15:
-      ret = PP_PIX_FMT_BGR16_5_5_5;
-      break;
-    case GST_VIDEO_FORMAT_BGR16:
-      ret = PP_PIX_FMT_BGR16_5_6_5;
-      break;
-//    case GST_VIDEO_FORMAT_XXXX:
-//      ret = PP_PIX_FMT_RGB32_CUSTOM;
-//      break;
-    case GST_VIDEO_FORMAT_BGRx:
-      ret = PP_PIX_FMT_RGB32;   //Inverted on purpose
-      break;
-    case GST_VIDEO_FORMAT_RGBx:
-      ret = PP_PIX_FMT_BGR32;   //Inverted on purpose
-      break;
-    default:
-      g_return_val_if_reached (-1);
+  for (i = 0; i < G_N_ELEMENTS (format_map); i++) {
+    if (format_map[i].format == fmt)
+      return format_map[i].pp_pixel_format;
   }
 
-  return ret;
+  g_return_val_if_reached (-1);
 }

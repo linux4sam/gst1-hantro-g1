@@ -299,7 +299,7 @@ gst_g1_h264_dec_parse_header (GstG1H264Dec * dec)
     }
 
   }
-  finfoi = gst_g1_format_h264_to_gst (H264DEC_SEMIPLANAR_YUV420);
+  finfoi = gst_format_g1_to_gst (header.outputFormat);
   gst_g1_base_dec_config_format (g1dec, &finfoi,
       header.picWidth, header.picHeight);
 

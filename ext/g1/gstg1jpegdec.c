@@ -63,8 +63,7 @@ GST_STATIC_PAD_TEMPLATE ("sink",
     GST_STATIC_CAPS ("image/jpeg,"
         "framerate = (fraction) [0/1, MAX],"
         "width = (int) [ 1, 8176 ],"
-        "height = (int) [ 1, 8176 ],"
-		"parsed = true"));
+        "height = (int) [ 1, 8176 ]," "parsed = true"));
 
 GST_DEBUG_CATEGORY_STATIC (g1_jpeg_dec_debug);
 
@@ -354,7 +353,7 @@ gst_g1_jpeg_dec_decode (GstG1BaseDec * g1dec, GstVideoCodecFrame * frame)
       }
     }
 
-    finfoi = gst_g1_format_mp4_to_gst (MP4DEC_SEMIPLANAR_YUV420);
+    finfoi = gst_format_g1_to_gst (imageInfo.outputFormat);
     gst_g1_base_dec_config_format (g1dec, &finfoi, imageInfo.outputWidth,
         imageInfo.outputHeight);
     GST_LOG_OBJECT (dec, "outputWidth = %d outputHeight = %d\n",
