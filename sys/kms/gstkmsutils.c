@@ -42,6 +42,8 @@ static const struct
 
   /* DEF_FMT (XRGB1555, ???), */
   /* DEF_FMT (XBGR1555, ???), */
+  DEF_FMT (RGB565, RGB16),
+  DEF_FMT (BGR565, BGR16),
 #if G_BYTE_ORDER == G_LITTLE_ENDIAN
   DEF_FMT (ARGB8888, BGRA),
   DEF_FMT (XRGB8888, BGRx),
@@ -110,6 +112,8 @@ gst_drm_bpp_from_drm (guint32 drmfmt)
     case DRM_FORMAT_UYVY:
     case DRM_FORMAT_YUYV:
     case DRM_FORMAT_YVYU:
+    case DRM_FORMAT_RGB565:
+    case DRM_FORMAT_BGR565:
       bpp = 16;
       break;
     default:
